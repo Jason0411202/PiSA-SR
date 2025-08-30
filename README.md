@@ -195,3 +195,8 @@ If you have any questions, please contact: ling-chen.sun@connect.polyu.hk
 ![visitors](https://visitor-badge.laobi.icu/badge?page_id=csslc/PiSA-SR)
 
 </details>
+
+# 第一個能跑的版本, inference 指令
+```
+CUDA_VISIBLE_DEVICES=7 python test_pisasr.py --pretrained_model_path preset/models/sd-2.1-base --pretrained_path preset/models/pisa_sr.pkl --process_size 64 --upscale 4 --input_image ../HC18/test_set --output_dir experiments/HC18/test_set --latent_tiled_size 96 --latent_tiled_overlap 8 --vae_encoder_tiled_size 768 --vae_decoder_tiled_size 64 --default
+```

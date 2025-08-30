@@ -1,0 +1,6 @@
+**/__pycache__/
+*ckpt
+*pkl
+*pth
+*.py[cod]
+experiments/
