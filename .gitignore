@@ -4,3 +4,4 @@
 *pth
 *.py[cod]
 experiments/
+wandb/

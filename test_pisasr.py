@@ -13,7 +13,10 @@ import glob
 
 from skimage.metrics import peak_signal_noise_ratio as compare_psnr
 from skimage.metrics import structural_similarity as compare_ssim
+import wandb
+import datetime
 
+run_timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
 def pisa_sr(args):
     # Initialize the model
@@ -40,7 +43,7 @@ def pisa_sr(args):
     # 紀錄 PSNR 與 SSIM
     psnr_scores = []
     ssim_scores = []
-    for image_name in image_names:
+    for idx, image_name in enumerate(image_names, start=1):
         # 檢查檔案是否存在
         if not os.path.exists(image_name):
             print(f"[警告] 找不到檔案 {image_name}，略過。")
@@ -61,10 +64,18 @@ def pisa_sr(args):
         # Step 1. 製作 Ground Truth (GT) → 512x512
         gt_image = input_image.resize((512, 512), Image.LANCZOS)
         gt_image.save(os.path.join(gt_image_path, bname))
+        if idx < 5:
+            wandb.log({
+                "GT": [wandb.Image(gt_image, caption=f"GT-{bname}")],
+            })
 
         # Step 2. Degradation. Downsample 成 128x128 (模擬低解析度輸入)
         input_image = gt_image.resize((128, 128), Image.BICUBIC)
         input_image.save(os.path.join(lr_image_path, bname))
+        if idx < 5:
+            wandb.log({
+                "LR": [wandb.Image(input_image, caption=f"LR-{bname}")],
+            })
 
         # 強行放大成 512x512 (模擬低解析度輸入), 再由模型修復 artifact
         input_image = input_image.resize((input_image.size[0] * rscale, input_image.size[1] * rscale))
@@ -112,6 +123,10 @@ def pisa_sr(args):
         if resize_flag:
             output_pil = output_pil.resize((int(args.upscale * ori_width), int(args.upscale * ori_height)))
         output_pil.save(os.path.join(hr_image_path, bname))
+        if idx < 5:
+            wandb.log({
+                "HR": [wandb.Image(output_pil, caption=f"HR-{bname}")]
+            })
 
     # Calculate the average inference time, excluding the first few for stabilization
     if len(time_records) > 3:
@@ -125,6 +140,11 @@ def pisa_sr(args):
         avg_psnr = np.mean(psnr_scores)
         avg_ssim = np.mean(ssim_scores)
         print(f"Average PSNR: {avg_psnr:.2f}, Average SSIM: {avg_ssim:.4f}")
+        wandb.log({
+            "Average PSNR": avg_psnr,
+            "Average SSIM": avg_ssim,
+            "Average Inference Time": average_time
+        })
     else:
         print("[警告] 沒有成功計算任何 PSNR/SSIM")
 
@@ -149,6 +169,12 @@ if __name__ == "__main__":
     parser.add_argument("--default",  action="store_true", help="use default or adjustale setting?") 
 
     args = parser.parse_args()
+
+    wandb.init(
+        project="test_pisasr",
+        name=run_timestamp,
+        config=vars(args)
+    )
 
     # Call the processing function
     pisa_sr(args)
