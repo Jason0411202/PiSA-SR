@@ -61,34 +61,43 @@ def pisa_sr(args):
             resize_flag = True
 
         bname = os.path.basename(image_name)
-        # Step 1. 製作 Ground Truth (GT) → 512x512
-        gt_image = input_image.resize((512, 512), Image.LANCZOS)
+        # Step 1. 製作 Ground Truth (GT) → args.input_resize x args.input_resize
+        if args.input_resize is not None:
+            gt_image = input_image.resize((args.input_resize, args.input_resize), Image.LANCZOS)
+        else:
+            gt_image = input_image
+        gt_width = gt_image.width - gt_image.width % (8 * args.upscale) # 確保是 8 * args.upscale 的倍數
+        gt_height = gt_image.height - gt_image.height % (8 * args.upscale) # 確保是 8 * args.upscale 的倍數
+        gt_image = gt_image.resize((gt_width, gt_height), Image.LANCZOS)
         gt_image.save(os.path.join(gt_image_path, bname))
         if idx < 5:
             wandb.log({
                 "GT": [wandb.Image(gt_image, caption=f"GT-{bname}")],
-            })
+        })
 
-        # Step 2. Degradation. Downsample 成 128x128 (模擬低解析度輸入)
-        input_image = gt_image.resize((128, 128), Image.BICUBIC)
-        input_image.save(os.path.join(lr_image_path, bname))
+        # Step 2. Degradation. Downsample 成 args.input_resize // args.upscale
+        if args.input_resize is not None:
+            lr_image = gt_image.resize((args.input_resize // args.upscale, args.input_resize // args.upscale), Image.BICUBIC)
+        else:
+            lr_image = gt_image.resize((gt_image.size[0] // args.upscale, gt_image.size[1] // args.upscale), Image.BICUBIC)
+        lr_image.save(os.path.join(lr_image_path, bname))
         if idx < 5:
             wandb.log({
-                "LR": [wandb.Image(input_image, caption=f"LR-{bname}")],
+                "LR": [wandb.Image(lr_image, caption=f"LR-{bname}")],
             })
 
-        # 強行放大成 512x512 (模擬低解析度輸入), 再由模型修復 artifact
-        input_image = input_image.resize((input_image.size[0] * rscale, input_image.size[1] * rscale))
-        new_width = input_image.width - input_image.width % 8
-        new_height = input_image.height - input_image.height % 8
-        input_image = input_image.resize((new_width, new_height), Image.LANCZOS)
+        # 將 LR 先強行放大成 rscale 倍, 再由模型修復 artifact
+        lr_image_upsample = lr_image.resize((lr_image.size[0] * rscale, lr_image.size[1] * rscale))
+        new_width = lr_image_upsample.width - lr_image_upsample.width % 8 # 確保是 8 的倍數
+        new_height = lr_image_upsample.height - lr_image_upsample.height % 8 # 確保是 8 的倍數
+        lr_image_upsample = lr_image_upsample.resize((new_width, new_height), Image.LANCZOS)
 
         # Get caption (you can add the text prompt here)
         validation_prompt = ''
 
         # Translate the image
         with torch.no_grad():
-            c_t = F.to_tensor(input_image).unsqueeze(0).cuda() * 2 - 1
+            c_t = F.to_tensor(lr_image_upsample).unsqueeze(0).cuda() * 2 - 1
             inference_time, output_image = model(args.default, c_t, prompt=validation_prompt)
 
         print(f"Inference time: {inference_time:.4f} seconds")
@@ -151,12 +160,13 @@ def pisa_sr(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input_image', '-i', type=str, default='preset/test_datasets', help="path to the input image")
+    parser.add_argument('--input_image', '-i', type=str, default='preset/test_datasets', help="path to the input image") # 為了取得 pair data 來計算 PSNR 與 SSIM, 輸入從原始程式中的 LR 改成直接輸入 GT, 程式會自動 degradation 來產生 LR
     parser.add_argument('--output_dir', '-o', type=str, default='experiments/test', help="the directory to save the output")
     parser.add_argument("--pretrained_model_path", type=str, default='preset/models/stable-diffusion-2-1-base')
     parser.add_argument('--pretrained_path', type=str, default='preset/models/pisa_sr.pkl', help="path to a model state dict to be used")
     parser.add_argument('--seed', type=int, default=42, help="Random seed to be used")
     parser.add_argument("--process_size", type=int, default=512) # 輸入的圖片邊長會被至少調整至 process_size // upscale (處理太小的模型用的)
+    parser.add_argument("--input_resize", type=int) # 將輸入 resize 調整至這個大小 (例如 512) 再進行其他處理
     parser.add_argument("--upscale", type=int, default=4)
     parser.add_argument("--align_method", type=str, choices=['wavelet', 'adain', 'nofix'], default="adain")
     parser.add_argument("--lambda_pix", default=1.0, type=float, help="the scale for pixel-level enhancement")
