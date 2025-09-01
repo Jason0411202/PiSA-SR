@@ -1,10 +1,1 @@
-
-python test_pisasr.py \
---pretrained_model_path preset/models/stable-diffusion-2-1-base \
---pretrained_path preset/models/pisa_sr.pkl \
---process_size 512 \
---upscale 4 \
---input_image preset/test_datasets \
---output_dir experiments/test \
---default
-
+CUDA_VISIBLE_DEVICES=1 python test_pisasr.py --pretrained_model_path preset/models/sd-2.1-base --pretrained_path preset/models/pisa_sr.pkl --process_size 64 --upscale 4 --input_image ../HC18/test_set --output_dir experiments/HC18/test_set --default

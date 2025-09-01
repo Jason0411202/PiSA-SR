@@ -9,6 +9,8 @@ def parse_args(input_args=None):
 
     parser = argparse.ArgumentParser()
     
+    parser.add_argument("--train_folder", default=False)
+
     parser.add_argument("--is_module", default=False)
     parser.add_argument("--tracker_project_name", type=str, default="pisasr2025")
 

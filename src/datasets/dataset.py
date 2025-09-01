@@ -9,6 +9,9 @@ from pathlib import Path
 import numpy as np
 from src.datasets.realesrgan import RealESRGAN_degradation
 
+from PIL import ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
+
 
 
 class PairedSROnlineTxtDataset(torch.utils.data.Dataset):
@@ -31,8 +34,8 @@ class PairedSROnlineTxtDataset(torch.utils.data.Dataset):
                     self.hq_gt_list = [line.strip() for line in f.readlines()]
 
         elif split == 'test':
-            self.input_folder = os.path.join(args.dataset_test_folder, "test_SR_bicubic")
-            self.output_folder = os.path.join(args.dataset_test_folder, "test_HR")
+            self.input_folder = os.path.join(args.dataset_test_folder, "LR")
+            self.output_folder = os.path.join(args.dataset_test_folder, "HR")
             self.lr_list = []
             self.gt_list = []
             lr_names = os.listdir(os.path.join(self.input_folder))

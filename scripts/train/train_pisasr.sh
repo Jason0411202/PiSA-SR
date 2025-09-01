@@ -1,12 +1,13 @@
 
-CUDA_VISIBLE_DEVICES="0,1,2,3," accelerate launch train_pisasr.py \
-    --pretrained_model_path="preset/models/stable-diffusion-2-1-base" \
-    --pretrained_model_path_csd="preset/models/stable-diffusion-2-1-base" \
+CUDA_VISIBLE_DEVICES="1,2,4,5,6,7" accelerate launch train_pisasr.py \
+    --pretrained_model_path="preset/models/sd-2.1-base" \
+    --pretrained_model_path_csd="preset/models/sd-2.1-base" \
+    --train_folder="../HC18/training_set" \
     --dataset_txt_paths="preset/gt_path.txt" \
-    --highquality_dataset_txt_paths="preset/gt_selected_path.txt" \
-    --dataset_test_folder="preset/testfolder" \
+    --highquality_dataset_txt_paths="preset/gt_path.txt" \
+    --dataset_test_folder="experiments/HC18/test_set" \
     --learning_rate=5e-5 \
-    --train_batch_size=4 \
+    --train_batch_size=1 \
     --prob=0.0 \
     --gradient_accumulation_steps=1 \
     --enable_xformers_memory_efficient_attention --checkpointing_steps 500 \
@@ -26,4 +27,5 @@ CUDA_VISIBLE_DEVICES="0,1,2,3," accelerate launch train_pisasr.py \
     --align_method="adain" \
     --deg_file_path="params.yml" \
     --tracker_project_name "PiSASR" \
-    --is_module True
+    --is_module True \
+    --resolution_ori=128

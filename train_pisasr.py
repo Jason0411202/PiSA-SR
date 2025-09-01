@@ -26,6 +26,7 @@ from accelerate.utils import set_seed, ProjectConfiguration
 from accelerate import DistributedDataParallelKwargs
 
 from src.my_utils.wavelet_color_fix import adain_color_fix, wavelet_color_fix
+from src.my_utils.utils import write_image_paths
 import random
 
 def main(args):
@@ -235,4 +236,7 @@ def main(args):
 
 if __name__ == "__main__":
     args = parse_args()
+
+    write_image_paths(args.train_folder, args.dataset_txt_paths, exts=[".png", ".jpg"])
+
     main(args)
