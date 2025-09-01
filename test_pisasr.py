@@ -11,6 +11,9 @@ from src.my_utils.wavelet_color_fix import adain_color_fix, wavelet_color_fix
 
 import glob
 
+from skimage.metrics import peak_signal_noise_ratio as compare_psnr
+from skimage.metrics import structural_similarity as compare_ssim
+
 
 def pisa_sr(args):
     # Initialize the model
@@ -24,11 +27,25 @@ def pisa_sr(args):
         image_names = [args.input_image]
 
     # Make the output directory
-    os.makedirs(args.output_dir, exist_ok=True)
+    lr_image_path = os.path.join(args.output_dir, 'LR')
+    hr_image_path = os.path.join(args.output_dir, 'HR')
+    gt_image_path = os.path.join(args.output_dir, 'GT')
+    os.makedirs(lr_image_path, exist_ok=True) # 將 GT 中的圖片 downsampling 後，變成 LR 並存在這裡
+    os.makedirs(hr_image_path, exist_ok=True) # LR 經過模型處理後，變成 HR後會存在這裡
+    os.makedirs(gt_image_path, exist_ok=True) # 原始圖片經過 resize 後會存在這裡
     print(f'There are {len(image_names)} images.')
 
     time_records = []
+
+    # 紀錄 PSNR 與 SSIM
+    psnr_scores = []
+    ssim_scores = []
     for image_name in image_names:
+        # 檢查檔案是否存在
+        if not os.path.exists(image_name):
+            print(f"[警告] 找不到檔案 {image_name}，略過。")
+            continue
+
         # Ensure the input image is a multiple of 8
         input_image = Image.open(image_name).convert('RGB')
         ori_width, ori_height = input_image.size
@@ -40,11 +57,20 @@ def pisa_sr(args):
             input_image = input_image.resize((int(scale * ori_width), int(scale * ori_height)))
             resize_flag = True
 
+        bname = os.path.basename(image_name)
+        # Step 1. 製作 Ground Truth (GT) → 512x512
+        gt_image = input_image.resize((512, 512), Image.LANCZOS)
+        gt_image.save(os.path.join(gt_image_path, bname))
+
+        # Step 2. Degradation. Downsample 成 128x128 (模擬低解析度輸入)
+        input_image = gt_image.resize((128, 128), Image.BICUBIC)
+        input_image.save(os.path.join(lr_image_path, bname))
+
+        # 強行放大成 512x512 (模擬低解析度輸入), 再由模型修復 artifact
         input_image = input_image.resize((input_image.size[0] * rscale, input_image.size[1] * rscale))
         new_width = input_image.width - input_image.width % 8
         new_height = input_image.height - input_image.height % 8
         input_image = input_image.resize((new_width, new_height), Image.LANCZOS)
-        bname = os.path.basename(image_name)
 
         # Get caption (you can add the text prompt here)
         validation_prompt = ''
@@ -66,9 +92,26 @@ def pisa_sr(args):
         elif args.align_method == 'wavelet':
             output_pil = wavelet_color_fix(target=output_pil, source=input_image)
 
+        # 計算 PSNR 與 SSIM（用 NumPy array）
+        output_np = np.array(output_pil)
+        gt_np = np.array(gt_image)
+        # 安全檢查：確保大小一致
+        if output_np.shape != gt_np.shape:
+            print(f"[警告] 輸出與 GT 尺寸不一致，略過計算 ({bname})")
+            print("output_np.shape: ", output_np.shape, "gt_np.shape: ", gt_np.shape)
+            
+        else:
+            psnr_val = compare_psnr(gt_np, output_np, data_range=255)
+            ssim_val = compare_ssim(gt_np, output_np, channel_axis=-1, data_range=255)
+
+            psnr_scores.append(psnr_val)
+            ssim_scores.append(ssim_val)
+
+            print(f"PSNR: {psnr_val:.2f}, SSIM: {ssim_val:.4f}")
+
         if resize_flag:
             output_pil = output_pil.resize((int(args.upscale * ori_width), int(args.upscale * ori_height)))
-        output_pil.save(os.path.join(args.output_dir, bname))
+        output_pil.save(os.path.join(hr_image_path, bname))
 
     # Calculate the average inference time, excluding the first few for stabilization
     if len(time_records) > 3:
@@ -76,6 +119,14 @@ def pisa_sr(args):
     else:
         average_time = np.mean(time_records)
     print(f"Average inference time: {average_time:.4f} seconds")
+
+    # 計算平均 PSNR / SSIM
+    if len(psnr_scores) > 0:
+        avg_psnr = np.mean(psnr_scores)
+        avg_ssim = np.mean(ssim_scores)
+        print(f"Average PSNR: {avg_psnr:.2f}, Average SSIM: {avg_ssim:.4f}")
+    else:
+        print("[警告] 沒有成功計算任何 PSNR/SSIM")
 
 
 if __name__ == "__main__":
@@ -85,7 +136,7 @@ if __name__ == "__main__":
     parser.add_argument("--pretrained_model_path", type=str, default='preset/models/stable-diffusion-2-1-base')
     parser.add_argument('--pretrained_path', type=str, default='preset/models/pisa_sr.pkl', help="path to a model state dict to be used")
     parser.add_argument('--seed', type=int, default=42, help="Random seed to be used")
-    parser.add_argument("--process_size", type=int, default=512)
+    parser.add_argument("--process_size", type=int, default=512) # 輸入的圖片邊長會被至少調整至 process_size // upscale (處理太小的模型用的)
     parser.add_argument("--upscale", type=int, default=4)
     parser.add_argument("--align_method", type=str, choices=['wavelet', 'adain', 'nofix'], default="adain")
     parser.add_argument("--lambda_pix", default=1.0, type=float, help="the scale for pixel-level enhancement")
