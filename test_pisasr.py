@@ -16,7 +16,7 @@ from skimage.metrics import structural_similarity as compare_ssim
 import wandb
 import datetime
 
-run_timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+run_timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S") # 計算執行程式時的當前時間
 
 def pisa_sr(args):
     # Initialize the model
@@ -176,13 +176,16 @@ if __name__ == "__main__":
     parser.add_argument("--latent_tiled_size", type=int, default=96) 
     parser.add_argument("--latent_tiled_overlap", type=int, default=32) 
     parser.add_argument("--mixed_precision", type=str, default="fp16")
+    parser.add_argument("--wandb_run_name", type=str, default="")
+    parser.add_argument("--use_residual_in_training", default=True, type=bool) # 是否在訓練時使用殘差學習 (預設 True)
     parser.add_argument("--default",  action="store_true", help="use default or adjustale setting?") 
 
     args = parser.parse_args()
 
+    # 初始化 wandb
     wandb.init(
         project="test_pisasr",
-        name=run_timestamp,
+        name=args.wandb_run_name + "_" + run_timestamp,
         config=vars(args)
     )
 

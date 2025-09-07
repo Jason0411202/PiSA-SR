@@ -53,7 +53,7 @@ def parse_args(input_args=None):
     parser.add_argument("--seed", type=int, default=123, help="A seed for reproducible training.")
     parser.add_argument("--train_batch_size", type=int, default=2, help="Batch size (per device) for the training dataloader.")
     parser.add_argument("--num_training_epochs", type=int, default=10000)
-    parser.add_argument("--max_train_steps", type=int, default=100000,)
+    parser.add_argument("--max_train_steps", type=int, default=1500,) # 預設 1500 step 後停止訓練
     parser.add_argument("--pix_steps", type=int, default=10,)
     parser.add_argument("--checkpointing_steps", type=int, default=500,)
     parser.add_argument("--eval_freq", type=int, default=500, )
@@ -97,6 +97,9 @@ def parse_args(input_args=None):
     parser.add_argument("--logging_dir", type=str, default="logs")
     parser.add_argument("--deg_file_path", default="params.yml", type=str)
     parser.add_argument("--align_method", type=str, choices=['wavelet', 'adain', 'nofix'], default='adain')
+
+    parser.add_argument("--use_residual_in_training", default=True, type=bool) # 是否在訓練時使用殘差學習 (預設 True)
+    parser.add_argument("--wandb_run_name", default="", type=str) # 設定 wandb 的 run name
 
 
     if input_args is not None:

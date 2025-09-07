@@ -29,6 +29,11 @@ from src.my_utils.wavelet_color_fix import adain_color_fix, wavelet_color_fix
 from src.my_utils.utils import write_image_paths
 import random
 
+import wandb
+import datetime
+
+run_timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S") # 計算執行程式時的當前時間
+
 def main(args):
     logging_dir = Path(args.output_dir, args.logging_dir)
     accelerator_project_config = ProjectConfiguration(project_dir=args.output_dir, logging_dir=logging_dir)
@@ -236,6 +241,13 @@ def main(args):
 
 if __name__ == "__main__":
     args = parse_args()
+
+    # 初始化 wandb
+    wandb.init(
+        project="test_pisasr",
+        name=args.wandb_run_name + "_" + run_timestamp,
+        config=vars(args)
+    )
 
     write_image_paths(args.train_folder, args.dataset_txt_paths, exts=[".png", ".jpg"])
 
