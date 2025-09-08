@@ -1,10 +1,8 @@
 # 實驗 3
-# 訓練時，確定是否要保留 semantic LoRA，若 2 比較好，則日後實驗都採用 2 的配置
+# 比較訓練時是否使用殘差，對於結果的影響
+# pisasr.py 中包含的 `x_denoised = encoded_control - model_pred` 便是殘差邏輯
 
-# 1. lora_rank_unet_pix=4, lora_rank_unet_sem=4 (對照組)
-# 2. lora_rank_unet_pix=4, lora_rank_unet_sem=0
-
-# 1. lora_rank_unet_pix=4, lora_rank_unet_sem=4 (對照組)
+# 1. 使用殘差 (對照組)
 CUDA_VISIBLE_DEVICES="4,7" accelerate launch train_pisasr.py \
     --pretrained_model_path="preset/models/sd-2.1-base" \
     --pretrained_model_path_csd="preset/models/sd-2.1-base" \
@@ -35,9 +33,9 @@ CUDA_VISIBLE_DEVICES="4,7" accelerate launch train_pisasr.py \
     --tracker_project_name "PiSASR" \
     --is_module True \
     --resolution_ori=128 \
-    --wandb_run_name "exp1_lora_rank_unet_sem4 (train)"
-
-## 1. test
+    --use_residual_in_training True \
+    --wandb_run_name "exp3_with_residual (train)"
+## 2. test
 CUDA_VISIBLE_DEVICES=4 \
 python test_pisasr.py \
   --pretrained_model_path preset/models/sd-2.1-base \
@@ -45,14 +43,14 @@ python test_pisasr.py \
   --process_size 64 \
   --upscale 4 \
   --input_image ../HC18/test_set \
-  --output_dir experiments/HC18/test_set/exp1/1 \
+  --output_dir experiments/HC18/test_set/exp3/1 \
   --lambda_pix 1.0 \
   --lambda_sem 1.0 \
-  --wandb_run_name "exp1_lora_rank_unet_sem4 (test)"
+  --use_residual_in_training True \
+  --wandb_run_name "exp3_with_residual (test)"
 
 
-
-# 2. lora_rank_unet_pix=4, lora_rank_unet_sem=0
+# 2. 不使用殘差
 CUDA_VISIBLE_DEVICES="4,7" accelerate launch train_pisasr.py \
     --pretrained_model_path="preset/models/sd-2.1-base" \
     --pretrained_model_path_csd="preset/models/sd-2.1-base" \
@@ -74,7 +72,7 @@ CUDA_VISIBLE_DEVICES="4,7" accelerate launch train_pisasr.py \
     --lambda_csd=1.0 \
     --pix_steps=4000 \
     --lora_rank_unet_pix=4 \
-    --lora_rank_unet_sem=0 \
+    --lora_rank_unet_sem=4 \
     --min_dm_step_ratio=0.02 \
     --max_dm_step_ratio=0.5 \
     --null_text_ratio=0.5 \
@@ -83,7 +81,8 @@ CUDA_VISIBLE_DEVICES="4,7" accelerate launch train_pisasr.py \
     --tracker_project_name "PiSASR" \
     --is_module True \
     --resolution_ori=128 \
-    --wandb_run_name "exp1_lora_rank_unet_sem0 (train)"
+    --use_residual_in_training False \
+    --wandb_run_name "exp3_no_residual (train)"
 ## 2. test
 CUDA_VISIBLE_DEVICES=4 \
 python test_pisasr.py \
@@ -92,7 +91,8 @@ python test_pisasr.py \
   --process_size 64 \
   --upscale 4 \
   --input_image ../HC18/test_set \
-  --output_dir experiments/HC18/test_set/exp1/2 \
+  --output_dir experiments/HC18/test_set/exp3/2 \
   --lambda_pix 1.0 \
   --lambda_sem 1.0 \
-  --wandb_run_name "exp1_lora_rank_unet_sem0 (test)"
+  --use_residual_in_training False \
+  --wandb_run_name "exp3_no_residual (test)"

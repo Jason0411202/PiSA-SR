@@ -102,9 +102,9 @@ def main(args):
     
     # initialize the dataset
     dataset_train = PairedSROnlineTxtDataset(split="train", args=args)
-    dataset_val = PairedSROnlineTxtDataset(split="test", args=args)
+    # dataset_val = PairedSROnlineTxtDataset(split="test", args=args)
     dl_train = torch.utils.data.DataLoader(dataset_train, batch_size=args.train_batch_size, shuffle=True, num_workers=args.dataloader_num_workers)
-    dl_val = torch.utils.data.DataLoader(dataset_val, batch_size=1, shuffle=False, num_workers=0)
+    # dl_val = torch.utils.data.DataLoader(dataset_val, batch_size=1, shuffle=False, num_workers=0)
     
 
     # init RAM for text prompt extractor
@@ -204,38 +204,38 @@ def main(args):
                         outf = os.path.join(args.output_dir, "checkpoints", f"model_{global_step}.pkl")
                         accelerator.unwrap_model(net_pisasr).save_model(outf)
 
-                    # test
-                    if global_step % args.eval_freq == 1:
-                        os.makedirs(os.path.join(args.output_dir, "eval", f"fid_{global_step}"), exist_ok=True)
-                        for step, batch_val in enumerate(dl_val):
-                            x_src = batch_val["conditioning_pixel_values"].cuda()
-                            x_tgt = batch_val["output_pixel_values"].cuda()
-                            x_basename = batch_val["base_name"][0]
-                            B, C, H, W = x_src.shape
-                            assert B == 1, "Use batch size 1 for eval."
-                            with torch.no_grad():
-                                # get text prompts from LR
-                                x_src_ram = ram_transforms(x_src * 0.5 + 0.5)
-                                caption = inference(x_src_ram.to(dtype=torch.float16), RAM)
-                                batch_val["prompt"] = caption
-                                # forward pass
-                                x_tgt_pred, latents_pred, _, _ = accelerator.unwrap_model(net_pisasr)(x_src, x_tgt,
-                                                                                                      batch=batch_val,
-                                                                                                      args=args)
-                                # save the output
-                                output_pil = transforms.ToPILImage()(x_tgt_pred[0].cpu() * 0.5 + 0.5)
-                                input_image = transforms.ToPILImage()(x_src[0].cpu() * 0.5 + 0.5)
-                                if args.align_method == 'adain':
-                                    output_pil = adain_color_fix(target=output_pil, source=input_image)
-                                elif args.align_method == 'wavelet':
-                                    output_pil = wavelet_color_fix(target=output_pil, source=input_image)
-                                else:
-                                    pass
-                                outf = os.path.join(args.output_dir, "eval", f"fid_{global_step}", f"{x_basename}")
-                                output_pil.save(outf)
-                        gc.collect()
-                        torch.cuda.empty_cache()
-                        accelerator.log(logs, step=global_step)
+                    # # test
+                    # if global_step % args.eval_freq == 1:
+                    #     os.makedirs(os.path.join(args.output_dir, "eval", f"fid_{global_step}"), exist_ok=True)
+                    #     for step, batch_val in enumerate(dl_val):
+                    #         x_src = batch_val["conditioning_pixel_values"].cuda()
+                    #         x_tgt = batch_val["output_pixel_values"].cuda()
+                    #         x_basename = batch_val["base_name"][0]
+                    #         B, C, H, W = x_src.shape
+                    #         assert B == 1, "Use batch size 1 for eval."
+                    #         with torch.no_grad():
+                    #             # get text prompts from LR
+                    #             x_src_ram = ram_transforms(x_src * 0.5 + 0.5)
+                    #             caption = inference(x_src_ram.to(dtype=torch.float16), RAM)
+                    #             batch_val["prompt"] = caption
+                    #             # forward pass
+                    #             x_tgt_pred, latents_pred, _, _ = accelerator.unwrap_model(net_pisasr)(x_src, x_tgt,
+                    #                                                                                   batch=batch_val,
+                    #                                                                                   args=args)
+                    #             # save the output
+                    #             output_pil = transforms.ToPILImage()(x_tgt_pred[0].cpu() * 0.5 + 0.5)
+                    #             input_image = transforms.ToPILImage()(x_src[0].cpu() * 0.5 + 0.5)
+                    #             if args.align_method == 'adain':
+                    #                 output_pil = adain_color_fix(target=output_pil, source=input_image)
+                    #             elif args.align_method == 'wavelet':
+                    #                 output_pil = wavelet_color_fix(target=output_pil, source=input_image)
+                    #             else:
+                    #                 pass
+                    #             outf = os.path.join(args.output_dir, "eval", f"fid_{global_step}", f"{x_basename}")
+                    #             output_pil.save(outf)
+                    #     gc.collect()
+                    #     torch.cuda.empty_cache()
+                    #     accelerator.log(logs, step=global_step)
 
                     accelerator.log(logs, step=global_step)
 

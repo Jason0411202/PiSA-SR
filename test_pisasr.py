@@ -75,7 +75,7 @@ def pisa_sr(args):
                 "GT": [wandb.Image(gt_image, caption=f"GT-{bname}")],
         })
 
-        # Step 2. Degradation. Downsample 成 args.input_resize // args.upscale
+        # Step 2. Degradation. Downsample 成 args.input_resize // args.upscale (簡單的 bicubic)
         if args.input_resize is not None:
             lr_image = gt_image.resize((args.input_resize // args.upscale, args.input_resize // args.upscale), Image.BICUBIC)
         else:
