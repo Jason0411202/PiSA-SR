@@ -3,7 +3,7 @@
 # pisasr.py 中包含的 `x_denoised = encoded_control - model_pred` 便是殘差邏輯
 
 ########################################
-# 1. 使用殘差 (對照組)
+# 1. 不使用殘差 (對照組)
 ########################################
 
 ## train
@@ -36,8 +36,9 @@ CUDA_VISIBLE_DEVICES="4" accelerate launch train_pisasr.py \
     --tracker_project_name "PiSASR" \
     --is_module True \
     --resolution_ori=128 \
-    --use_residual_in_training True \
-    --wandb_run_name "exp3_with_residual (train)"
+    --use_residual_in_training False \
+    --wandb_run_name "exp3_no_residual (train)"
+
 ## test
 CUDA_VISIBLE_DEVICES=4 \
 python test_pisasr.py \
@@ -49,11 +50,11 @@ python test_pisasr.py \
     --output_dir experiments/HC18/exp3/1/test \
     --lambda_pix 1.0 \
     --lambda_sem 1.0 \
-    --use_residual_in_training True \
-    --wandb_run_name "exp3_with_residual (test)"
+    --use_residual_in_training False \
+    --wandb_run_name "exp3_no_residual (test)"
 
 ########################################
-# 2. 不使用殘差
+# 2. 使用殘差
 ########################################
 
 ## train
@@ -86,8 +87,8 @@ CUDA_VISIBLE_DEVICES="4" accelerate launch train_pisasr.py \
     --tracker_project_name "PiSASR" \
     --is_module True \
     --resolution_ori=128 \
-    --use_residual_in_training False \
-    --wandb_run_name "exp3_no_residual (train)"
+    --use_residual_in_training True \
+    --wandb_run_name "exp3_with_residual (train)"
 
 ## test
 CUDA_VISIBLE_DEVICES=4 \
@@ -100,5 +101,5 @@ python test_pisasr.py \
     --output_dir experiments/HC18/exp3/2/test \
     --lambda_pix 1.0 \
     --lambda_sem 1.0 \
-    --use_residual_in_training False \
-    --wandb_run_name "exp3_no_residual (test)"
+    --use_residual_in_training True \
+    --wandb_run_name "exp3_with_residual (test)"

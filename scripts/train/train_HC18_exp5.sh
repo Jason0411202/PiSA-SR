@@ -4,7 +4,7 @@
 # 訓練時，實驗 training degradation 使用強 (real-esrgan) 或僅 bicubic 比較好
 
 ########################################
-# 1. deg_file_path="params.yml" (對照組：real-esrgan degradation)
+# 1. deg_file_path="bicubic_4x.yml" (僅 bicubic 4x in training)
 CUDA_VISIBLE_DEVICES="0,1" accelerate launch train_pisasr.py \
     --pretrained_model_path="preset/models/sd-2.1-base" \
     --pretrained_model_path_csd="preset/models/sd-2.1-base" \
@@ -30,11 +30,11 @@ CUDA_VISIBLE_DEVICES="0,1" accelerate launch train_pisasr.py \
     --max_dm_step_ratio=0.5 \
     --null_text_ratio=0.5 \
     --align_method="adain" \
-    --deg_file_path="params.yml" \
+    --deg_file_path="bicubic_4x.yml" \
     --tracker_project_name "PiSASR" \
     --is_module True \
     --resolution_ori=128 \
-    --wandb_run_name "exp5_deg_params (train)"
+    --wandb_run_name "exp5_deg_bicubic4x (train)"
 
 ## 1. test
 CUDA_VISIBLE_DEVICES=4 \
@@ -47,11 +47,11 @@ python test_pisasr.py \
   --output_dir experiments/HC18/exp5/1/test \
   --lambda_pix 1.0 \
   --lambda_sem 1.0 \
-  --wandb_run_name "exp5_deg_params (test)"
+  --wandb_run_name "exp5_deg_bicubic4x (test)"
 
 
 ########################################
-# 2. deg_file_path="bicubic_4x.yml" (僅 bicubic 4x in training)
+# 2. deg_file_path="params.yml" (對照組：real-esrgan degradation)
 CUDA_VISIBLE_DEVICES="0,1" accelerate launch train_pisasr.py \
     --pretrained_model_path="preset/models/sd-2.1-base" \
     --pretrained_model_path_csd="preset/models/sd-2.1-base" \
@@ -77,11 +77,11 @@ CUDA_VISIBLE_DEVICES="0,1" accelerate launch train_pisasr.py \
     --max_dm_step_ratio=0.5 \
     --null_text_ratio=0.5 \
     --align_method="adain" \
-    --deg_file_path="bicubic_4x.yml" \
+    --deg_file_path="params.yml" \
     --tracker_project_name "PiSASR" \
     --is_module True \
     --resolution_ori=128 \
-    --wandb_run_name "exp5_deg_bicubic4x (train)"
+    --wandb_run_name "exp5_deg_params (train)"
 
 ## 2. test
 CUDA_VISIBLE_DEVICES=4 \
@@ -94,4 +94,4 @@ python test_pisasr.py \
   --output_dir experiments/HC18/exp5/2/test \
   --lambda_pix 1.0 \
   --lambda_sem 1.0 \
-  --wandb_run_name "exp5_deg_bicubic4x (test)"
+  --wandb_run_name "exp5_deg_params (test)"
