@@ -2,7 +2,7 @@
 # 訓練時，確定是否要保留 semantic LoRA
 
 # 1. lora_rank_unet_pix=4, lora_rank_unet_sem=0
-CUDA_VISIBLE_DEVICES="0,1" accelerate launch train_pisasr.py \
+CUDA_VISIBLE_DEVICES="0,5" accelerate launch train_pisasr.py \
     --pretrained_model_path="preset/models/sd-2.1-base" \
     --pretrained_model_path_csd="preset/models/sd-2.1-base" \
     --train_folder="../HC18/training_set" \
@@ -48,7 +48,7 @@ python test_pisasr.py \
 
 
 # 2. lora_rank_unet_pix=4, lora_rank_unet_sem=4 (對照組)
-CUDA_VISIBLE_DEVICES="0,1" accelerate launch train_pisasr.py \
+CUDA_VISIBLE_DEVICES="0,5" accelerate launch train_pisasr.py \
     --pretrained_model_path="preset/models/sd-2.1-base" \
     --pretrained_model_path_csd="preset/models/sd-2.1-base" \
     --train_folder="../HC18/training_set" \

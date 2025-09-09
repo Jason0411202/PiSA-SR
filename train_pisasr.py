@@ -203,6 +203,8 @@ def main(args):
                     if global_step % args.checkpointing_steps == 1:
                         outf = os.path.join(args.output_dir, "checkpoints", f"model_{global_step}.pkl")
                         accelerator.unwrap_model(net_pisasr).save_model(outf)
+                    if global_step >= args.max_train_steps:
+                        break
 
                     # # test
                     # if global_step % args.eval_freq == 1:

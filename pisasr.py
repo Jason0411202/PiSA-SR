@@ -63,19 +63,37 @@ def initialize_unet(rank_pix, rank_sem, return_lora_module_names=False, pretrain
                 l_modules_others_sem.append(n.replace(".weight",""))
                 break
 
-    lora_conf_encoder_pix = LoraConfig(r=rank_pix, init_lora_weights="gaussian",target_modules=l_target_modules_encoder_pix)
-    lora_conf_decoder_pix = LoraConfig(r=rank_pix, init_lora_weights="gaussian",target_modules=l_target_modules_decoder_pix)
-    lora_conf_others_pix = LoraConfig(r=rank_pix, init_lora_weights="gaussian",target_modules=l_modules_others_pix)
-    lora_conf_encoder_sem = LoraConfig(r=rank_sem, init_lora_weights="gaussian",target_modules=l_target_modules_encoder_sem)
-    lora_conf_decoder_sem = LoraConfig(r=rank_sem, init_lora_weights="gaussian",target_modules=l_target_modules_decoder_sem)
-    lora_conf_others_sem = LoraConfig(r=rank_sem, init_lora_weights="gaussian",target_modules=l_modules_others_sem)
+    # lora_conf_encoder_pix = LoraConfig(r=rank_pix, init_lora_weights="gaussian",target_modules=l_target_modules_encoder_pix)
+    # lora_conf_decoder_pix = LoraConfig(r=rank_pix, init_lora_weights="gaussian",target_modules=l_target_modules_decoder_pix)
+    # lora_conf_others_pix = LoraConfig(r=rank_pix, init_lora_weights="gaussian",target_modules=l_modules_others_pix)
+    # lora_conf_encoder_sem = LoraConfig(r=rank_sem, init_lora_weights="gaussian",target_modules=l_target_modules_encoder_sem)
+    # lora_conf_decoder_sem = LoraConfig(r=rank_sem, init_lora_weights="gaussian",target_modules=l_target_modules_decoder_sem)
+    # lora_conf_others_sem = LoraConfig(r=rank_sem, init_lora_weights="gaussian",target_modules=l_modules_others_sem)
 
-    unet.add_adapter(lora_conf_encoder_pix, adapter_name="default_encoder_pix")
-    unet.add_adapter(lora_conf_decoder_pix, adapter_name="default_decoder_pix")
-    unet.add_adapter(lora_conf_others_pix, adapter_name="default_others_pix")
-    unet.add_adapter(lora_conf_encoder_sem, adapter_name="default_encoder_sem")
-    unet.add_adapter(lora_conf_decoder_sem, adapter_name="default_decoder_sem")
-    unet.add_adapter(lora_conf_others_sem, adapter_name="default_others_sem")
+    # unet.add_adapter(lora_conf_encoder_pix, adapter_name="default_encoder_pix")
+    # unet.add_adapter(lora_conf_decoder_pix, adapter_name="default_decoder_pix")
+    # unet.add_adapter(lora_conf_others_pix, adapter_name="default_others_pix")
+    # unet.add_adapter(lora_conf_encoder_sem, adapter_name="default_encoder_sem")
+    # unet.add_adapter(lora_conf_decoder_sem, adapter_name="default_decoder_sem")
+    # unet.add_adapter(lora_conf_others_sem, adapter_name="default_others_sem")
+
+    # 只在 LoRA rank > 0 時，才新增 adapter
+    if rank_pix > 0:
+        lora_conf_encoder_pix = LoraConfig(r=rank_pix, init_lora_weights="gaussian", target_modules=l_target_modules_encoder_pix)
+        lora_conf_decoder_pix = LoraConfig(r=rank_pix, init_lora_weights="gaussian", target_modules=l_target_modules_decoder_pix)
+        lora_conf_others_pix = LoraConfig(r=rank_pix, init_lora_weights="gaussian", target_modules=l_modules_others_pix)
+        unet.add_adapter(lora_conf_encoder_pix, adapter_name="default_encoder_pix")
+        unet.add_adapter(lora_conf_decoder_pix, adapter_name="default_decoder_pix")
+        unet.add_adapter(lora_conf_others_pix, adapter_name="default_others_pix")
+
+    if rank_sem > 0:
+        lora_conf_encoder_sem = LoraConfig(r=rank_sem, init_lora_weights="gaussian", target_modules=l_target_modules_encoder_sem)
+        lora_conf_decoder_sem = LoraConfig(r=rank_sem, init_lora_weights="gaussian", target_modules=l_target_modules_decoder_sem)
+        lora_conf_others_sem = LoraConfig(r=rank_sem, init_lora_weights="gaussian", target_modules=l_modules_others_sem)
+        unet.add_adapter(lora_conf_encoder_sem, adapter_name="default_encoder_sem")
+        unet.add_adapter(lora_conf_decoder_sem, adapter_name="default_decoder_sem")
+        unet.add_adapter(lora_conf_others_sem, adapter_name="default_others_sem")
+
 
     if return_lora_module_names:
         return unet, l_target_modules_encoder_pix, l_target_modules_decoder_pix, l_modules_others_pix, l_target_modules_encoder_sem, l_target_modules_decoder_sem, l_modules_others_sem
@@ -231,22 +249,41 @@ class PiSASR(torch.nn.Module):
                 _p.requires_grad = False
 
     def load_ckpt_from_state_dict(self, sd):
-        # load unet lora
-        self.lora_conf_encoder_pix = LoraConfig(r=sd["lora_rank_unet_pix"], init_lora_weights="gaussian", target_modules=sd["unet_lora_encoder_modules_pix"])
-        self.lora_conf_decoder_pix = LoraConfig(r=sd["lora_rank_unet_pix"], init_lora_weights="gaussian", target_modules=sd["unet_lora_decoder_modules_pix"])
-        self.lora_conf_others_pix = LoraConfig(r=sd["lora_rank_unet_pix"], init_lora_weights="gaussian", target_modules=sd["unet_lora_others_modules_pix"])
+        # # load unet lora
+        # self.lora_conf_encoder_pix = LoraConfig(r=sd["lora_rank_unet_pix"], init_lora_weights="gaussian", target_modules=sd["unet_lora_encoder_modules_pix"])
+        # self.lora_conf_decoder_pix = LoraConfig(r=sd["lora_rank_unet_pix"], init_lora_weights="gaussian", target_modules=sd["unet_lora_decoder_modules_pix"])
+        # self.lora_conf_others_pix = LoraConfig(r=sd["lora_rank_unet_pix"], init_lora_weights="gaussian", target_modules=sd["unet_lora_others_modules_pix"])
 
-        self.lora_conf_encoder_sem = LoraConfig(r=sd["lora_rank_unet_sem"], init_lora_weights="gaussian", target_modules=sd["unet_lora_encoder_modules_sem"])
-        self.lora_conf_decoder_sem = LoraConfig(r=sd["lora_rank_unet_sem"], init_lora_weights="gaussian", target_modules=sd["unet_lora_decoder_modules_sem"])
-        self.lora_conf_others_sem = LoraConfig(r=sd["lora_rank_unet_sem"], init_lora_weights="gaussian", target_modules=sd["unet_lora_others_modules_sem"])
+        # self.lora_conf_encoder_sem = LoraConfig(r=sd["lora_rank_unet_sem"], init_lora_weights="gaussian", target_modules=sd["unet_lora_encoder_modules_sem"])
+        # self.lora_conf_decoder_sem = LoraConfig(r=sd["lora_rank_unet_sem"], init_lora_weights="gaussian", target_modules=sd["unet_lora_decoder_modules_sem"])
+        # self.lora_conf_others_sem = LoraConfig(r=sd["lora_rank_unet_sem"], init_lora_weights="gaussian", target_modules=sd["unet_lora_others_modules_sem"])
 
-        self.unet.add_adapter(self.lora_conf_encoder_pix, adapter_name="default_encoder_pix")
-        self.unet.add_adapter(self.lora_conf_decoder_pix, adapter_name="default_decoder_pix")
-        self.unet.add_adapter(self.lora_conf_others_pix, adapter_name="default_others_pix")
+        # self.unet.add_adapter(self.lora_conf_encoder_pix, adapter_name="default_encoder_pix")
+        # self.unet.add_adapter(self.lora_conf_decoder_pix, adapter_name="default_decoder_pix")
+        # self.unet.add_adapter(self.lora_conf_others_pix, adapter_name="default_others_pix")
 
-        self.unet.add_adapter(self.lora_conf_encoder_sem, adapter_name="default_encoder_sem")
-        self.unet.add_adapter(self.lora_conf_decoder_sem, adapter_name="default_decoder_sem")
-        self.unet.add_adapter(self.lora_conf_others_sem, adapter_name="default_others_sem")
+        # self.unet.add_adapter(self.lora_conf_encoder_sem, adapter_name="default_encoder_sem")
+        # self.unet.add_adapter(self.lora_conf_decoder_sem, adapter_name="default_decoder_sem")
+        # self.unet.add_adapter(self.lora_conf_others_sem, adapter_name="default_others_sem")
+
+        # 只在 LoRA rank > 0 時，才新增 adapter
+        if sd["lora_rank_unet_pix"] > 0:
+            self.lora_conf_encoder_pix = LoraConfig(r=sd["lora_rank_unet_pix"], init_lora_weights="gaussian", target_modules=sd["unet_lora_encoder_modules_pix"])
+            self.lora_conf_decoder_pix = LoraConfig(r=sd["lora_rank_unet_pix"], init_lora_weights="gaussian", target_modules=sd["unet_lora_decoder_modules_pix"])
+            self.lora_conf_others_pix  = LoraConfig(r=sd["lora_rank_unet_pix"], init_lora_weights="gaussian", target_modules=sd["unet_lora_others_modules_pix"])
+
+            self.unet.add_adapter(self.lora_conf_encoder_pix, adapter_name="default_encoder_pix")
+            self.unet.add_adapter(self.lora_conf_decoder_pix, adapter_name="default_decoder_pix")
+            self.unet.add_adapter(self.lora_conf_others_pix, adapter_name="default_others_pix")
+
+        if sd["lora_rank_unet_sem"] > 0:
+            self.lora_conf_encoder_sem = LoraConfig(r=sd["lora_rank_unet_sem"], init_lora_weights="gaussian", target_modules=sd["unet_lora_encoder_modules_sem"])
+            self.lora_conf_decoder_sem = LoraConfig(r=sd["lora_rank_unet_sem"], init_lora_weights="gaussian", target_modules=sd["unet_lora_decoder_modules_sem"])
+            self.lora_conf_others_sem  = LoraConfig(r=sd["lora_rank_unet_sem"], init_lora_weights="gaussian", target_modules=sd["unet_lora_others_modules_sem"])
+
+            self.unet.add_adapter(self.lora_conf_encoder_sem, adapter_name="default_encoder_sem")
+            self.unet.add_adapter(self.lora_conf_decoder_sem, adapter_name="default_decoder_sem")
+            self.unet.add_adapter(self.lora_conf_others_sem, adapter_name="default_others_sem")
 
         self.lora_unet_modules_encoder_pix, self.lora_unet_modules_decoder_pix, self.lora_unet_others_pix, \
         self.lora_unet_modules_encoder_sem, self.lora_unet_modules_decoder_sem, self.lora_unet_others_sem= \
@@ -415,40 +452,79 @@ class PiSASR_eval(nn.Module):
 
     def _load_and_save_ckpt_from_state_dict(self, sd):
         """Load checkpoint and initialize LoRA adapters."""
-        # Define LoRA configurations
-        self.lora_conf_encoder_pix = LoraConfig(r=sd["lora_rank_unet_pix"], init_lora_weights="gaussian", target_modules=sd["unet_lora_encoder_modules_pix"])
-        self.lora_conf_decoder_pix = LoraConfig(r=sd["lora_rank_unet_pix"], init_lora_weights="gaussian", target_modules=sd["unet_lora_decoder_modules_pix"])
-        self.lora_conf_others_pix = LoraConfig(r=sd["lora_rank_unet_pix"], init_lora_weights="gaussian", target_modules=sd["unet_lora_others_modules_pix"])
+        # # Define LoRA configurations
+        # self.lora_conf_encoder_pix = LoraConfig(r=sd["lora_rank_unet_pix"], init_lora_weights="gaussian", target_modules=sd["unet_lora_encoder_modules_pix"])
+        # self.lora_conf_decoder_pix = LoraConfig(r=sd["lora_rank_unet_pix"], init_lora_weights="gaussian", target_modules=sd["unet_lora_decoder_modules_pix"])
+        # self.lora_conf_others_pix = LoraConfig(r=sd["lora_rank_unet_pix"], init_lora_weights="gaussian", target_modules=sd["unet_lora_others_modules_pix"])
 
-        self.lora_conf_encoder_sem = LoraConfig(r=sd["lora_rank_unet_sem"], init_lora_weights="gaussian", target_modules=sd["unet_lora_encoder_modules_sem"])
-        self.lora_conf_decoder_sem = LoraConfig(r=sd["lora_rank_unet_sem"], init_lora_weights="gaussian", target_modules=sd["unet_lora_decoder_modules_sem"])
-        self.lora_conf_others_sem = LoraConfig(r=sd["lora_rank_unet_sem"], init_lora_weights="gaussian", target_modules=sd["unet_lora_others_modules_sem"])
+        # self.lora_conf_encoder_sem = LoraConfig(r=sd["lora_rank_unet_sem"], init_lora_weights="gaussian", target_modules=sd["unet_lora_encoder_modules_sem"])
+        # self.lora_conf_decoder_sem = LoraConfig(r=sd["lora_rank_unet_sem"], init_lora_weights="gaussian", target_modules=sd["unet_lora_decoder_modules_sem"])
+        # self.lora_conf_others_sem = LoraConfig(r=sd["lora_rank_unet_sem"], init_lora_weights="gaussian", target_modules=sd["unet_lora_others_modules_sem"])
 
-        # Add and load adapters
-        self.unet.add_adapter(self.lora_conf_encoder_pix, adapter_name="default_encoder_pix")
-        self.unet.add_adapter(self.lora_conf_decoder_pix, adapter_name="default_decoder_pix")
-        self.unet.add_adapter(self.lora_conf_others_pix, adapter_name="default_others_pix")
+        # # Add and load adapters
+        # self.unet.add_adapter(self.lora_conf_encoder_pix, adapter_name="default_encoder_pix")
+        # self.unet.add_adapter(self.lora_conf_decoder_pix, adapter_name="default_decoder_pix")
+        # self.unet.add_adapter(self.lora_conf_others_pix, adapter_name="default_others_pix")
 
-        for name, param in self.unet.named_parameters():
-            if "pix" in name:
-                param.data.copy_(sd["state_dict_unet"][name])
+        # for name, param in self.unet.named_parameters():
+        #     if "pix" in name:
+        #         param.data.copy_(sd["state_dict_unet"][name])
 
-        # Merge and save unet weights
-        set_weights_and_activate_adapters(self.unet, ["default_encoder_pix", "default_decoder_pix", "default_others_pix"], [1.0, 1.0, 1.0])
-        self.unet.merge_and_unload()
-        self.ori_unet_weight = {}
-        for name, param in self.unet.named_parameters():
-            self.ori_unet_weight[name] = param.clone()
-            self.ori_unet_weight[name] = self.ori_unet_weight[name].data.to(self.weight_dtype).to("cuda")
+        # # Merge and save unet weights
+        # set_weights_and_activate_adapters(self.unet, ["default_encoder_pix", "default_decoder_pix", "default_others_pix"], [1.0, 1.0, 1.0])
+        # self.unet.merge_and_unload()
+        # self.ori_unet_weight = {}
+        # for name, param in self.unet.named_parameters():
+        #     self.ori_unet_weight[name] = param.clone()
+        #     self.ori_unet_weight[name] = self.ori_unet_weight[name].data.to(self.weight_dtype).to("cuda")
         
-        # Add semantic adapters
-        self.unet.add_adapter(self.lora_conf_encoder_sem, adapter_name="default_encoder_sem")
-        self.unet.add_adapter(self.lora_conf_decoder_sem, adapter_name="default_decoder_sem")
-        self.unet.add_adapter(self.lora_conf_others_sem, adapter_name="default_others_sem")
+        # # Add semantic adapters
+        # self.unet.add_adapter(self.lora_conf_encoder_sem, adapter_name="default_encoder_sem")
+        # self.unet.add_adapter(self.lora_conf_decoder_sem, adapter_name="default_decoder_sem")
+        # self.unet.add_adapter(self.lora_conf_others_sem, adapter_name="default_others_sem")
         
-        for name, param in self.unet.named_parameters():
-            if "lora" in name:
-                param.data.copy_(sd["state_dict_unet"][name])
+        # for name, param in self.unet.named_parameters():
+        #     if "lora" in name:
+        #         param.data.copy_(sd["state_dict_unet"][name])
+
+        # 只在 LoRA rank > 0 時，才新增 adapter
+        if sd["lora_rank_unet_pix"] > 0:
+            self.lora_conf_encoder_pix = LoraConfig(r=sd["lora_rank_unet_pix"], init_lora_weights="gaussian", target_modules=sd["unet_lora_encoder_modules_pix"])
+            self.lora_conf_decoder_pix = LoraConfig(r=sd["lora_rank_unet_pix"], init_lora_weights="gaussian", target_modules=sd["unet_lora_decoder_modules_pix"])
+            self.lora_conf_others_pix = LoraConfig(r=sd["lora_rank_unet_pix"], init_lora_weights="gaussian", target_modules=sd["unet_lora_others_modules_pix"])
+
+            self.unet.add_adapter(self.lora_conf_encoder_pix, adapter_name="default_encoder_pix")
+            self.unet.add_adapter(self.lora_conf_decoder_pix, adapter_name="default_decoder_pix")
+            self.unet.add_adapter(self.lora_conf_others_pix, adapter_name="default_others_pix")
+
+            # 將 checkpoint (sd["state_dict_unet"]) 的 pix adapter 權重，copy 到程式中的 model 裡
+            # copy pix weights from checkpoint
+            for name, param in self.unet.named_parameters():
+                if "pix" in name:
+                    param.data.copy_(sd["state_dict_unet"][name])
+
+            # merge pix adapters into base weights and keep original weights
+            set_weights_and_activate_adapters(self.unet, ["default_encoder_pix", "default_decoder_pix", "default_others_pix"], [1.0, 1.0, 1.0])
+            self.unet.merge_and_unload()
+            self.ori_unet_weight = {}
+            for name, param in self.unet.named_parameters():
+                self.ori_unet_weight[name] = param.clone().data.to(self.weight_dtype).to("cuda")
+
+
+        # only add semantic-level adapters if rank > 0
+        if sd["lora_rank_unet_sem"] > 0:
+            self.lora_conf_encoder_sem = LoraConfig(r=sd["lora_rank_unet_sem"], init_lora_weights="gaussian", target_modules=sd["unet_lora_encoder_modules_sem"])
+            self.lora_conf_decoder_sem = LoraConfig(r=sd["lora_rank_unet_sem"], init_lora_weights="gaussian", target_modules=sd["unet_lora_decoder_modules_sem"])
+            self.lora_conf_others_sem = LoraConfig(r=sd["lora_rank_unet_sem"], init_lora_weights="gaussian", target_modules=sd["unet_lora_others_modules_sem"])
+
+            self.unet.add_adapter(self.lora_conf_encoder_sem, adapter_name="default_encoder_sem")
+            self.unet.add_adapter(self.lora_conf_decoder_sem, adapter_name="default_decoder_sem")
+            self.unet.add_adapter(self.lora_conf_others_sem, adapter_name="default_others_sem")
+
+            # copy semantic weights from checkpoint
+            for name, param in self.unet.named_parameters():
+                if "lora" in name:
+                    param.data.copy_(sd["state_dict_unet"][name])
 
 
     def set_eval(self):
