@@ -15,6 +15,7 @@ from skimage.metrics import peak_signal_noise_ratio as compare_psnr
 from skimage.metrics import structural_similarity as compare_ssim
 import wandb
 import datetime
+from src.my_utils.utils import compute_fid
 
 run_timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S") # 計算執行程式時的當前時間
 
@@ -156,6 +157,13 @@ def pisa_sr(args):
         })
     else:
         print("[警告] 沒有成功計算任何 PSNR/SSIM")
+
+    # 計算 FID
+    try:
+        fid_value = compute_fid(real_path=gt_image_path, fake_path=hr_image_path)
+        wandb.log({"FID": fid_value})
+    except Exception as e:
+        logging.error(f"Failed to compute FID: {e}\n{traceback.format_exc()}")
 
 
 if __name__ == "__main__":

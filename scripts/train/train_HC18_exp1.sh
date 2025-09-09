@@ -5,7 +5,7 @@
 # 2. lora_rank_unet_pix=4, lora_rank_unet_sem=0
 
 # 1. lora_rank_unet_pix=4, lora_rank_unet_sem=4 (對照組)
-CUDA_VISIBLE_DEVICES="4" accelerate launch train_pisasr.py \
+CUDA_VISIBLE_DEVICES="0,1" accelerate launch train_pisasr.py \
     --pretrained_model_path="preset/models/sd-2.1-base" \
     --pretrained_model_path_csd="preset/models/sd-2.1-base" \
     --train_folder="../HC18/training_set" \
@@ -17,7 +17,7 @@ CUDA_VISIBLE_DEVICES="4" accelerate launch train_pisasr.py \
     --gradient_accumulation_steps=4 \
     --enable_xformers_memory_efficient_attention --checkpointing_steps 500 \
     --seed 123 \
-    --output_dir="experiments/HC18/train-pisasr" \
+    --output_dir="experiments/HC18/exp1/1/train" \
     --cfg_csd 7.5 \
     --timesteps1 1 \
     --lambda_lpips=2.0 \
@@ -40,11 +40,11 @@ CUDA_VISIBLE_DEVICES="4" accelerate launch train_pisasr.py \
 CUDA_VISIBLE_DEVICES=4 \
 python test_pisasr.py \
   --pretrained_model_path preset/models/sd-2.1-base \
-  --pretrained_path experiments/train-pisasr/checkpoints/model_1001.pkl \
+  --pretrained_path experiments/HC18/exp1/1/train/checkpoints/model_1001.pkl \
   --process_size 64 \
   --upscale 4 \
   --input_image ../HC18/test_set \
-  --output_dir experiments/HC18/test_set/exp1/1 \
+  --output_dir experiments/HC18/exp1/1/test \
   --lambda_pix 1.0 \
   --lambda_sem 1.0 \
   --wandb_run_name "exp1_lora_rank_unet_sem4 (test)"
@@ -52,7 +52,7 @@ python test_pisasr.py \
 
 
 # 2. lora_rank_unet_pix=4, lora_rank_unet_sem=0
-CUDA_VISIBLE_DEVICES="4" accelerate launch train_pisasr.py \
+CUDA_VISIBLE_DEVICES="0,1" accelerate launch train_pisasr.py \
     --pretrained_model_path="preset/models/sd-2.1-base" \
     --pretrained_model_path_csd="preset/models/sd-2.1-base" \
     --train_folder="../HC18/training_set" \
@@ -64,7 +64,7 @@ CUDA_VISIBLE_DEVICES="4" accelerate launch train_pisasr.py \
     --gradient_accumulation_steps=4 \
     --enable_xformers_memory_efficient_attention --checkpointing_steps 500 \
     --seed 123 \
-    --output_dir="experiments/train-pisasr" \
+    --output_dir="experiments/HC18/exp1/2/train" \
     --cfg_csd 7.5 \
     --timesteps1 1 \
     --lambda_lpips=2.0 \
@@ -86,11 +86,11 @@ CUDA_VISIBLE_DEVICES="4" accelerate launch train_pisasr.py \
 CUDA_VISIBLE_DEVICES=4 \
 python test_pisasr.py \
   --pretrained_model_path preset/models/sd-2.1-base \
-  --pretrained_path experiments/train-pisasr/checkpoints/model_1001.pkl \
+  --pretrained_path experiments/HC18/exp1/2/train/checkpoints/model_1001.pkl \
   --process_size 64 \
   --upscale 4 \
   --input_image ../HC18/test_set \
-  --output_dir experiments/HC18/test_set/exp1/2 \
+  --output_dir experiments/HC18/exp1/2/test \
   --lambda_pix 1.0 \
   --lambda_sem 1.0 \
   --wandb_run_name "exp1_lora_rank_unet_sem0 (test)"

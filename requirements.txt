@@ -13,3 +13,4 @@ loralib
 basicsr
 fairscale
 wandb
+torch_fidelity
