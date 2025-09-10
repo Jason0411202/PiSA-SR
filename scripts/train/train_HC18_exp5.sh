@@ -5,7 +5,7 @@
 
 ########################################
 # 1. deg_file_path="bicubic_4x.yml" (僅 bicubic 4x in training)
-CUDA_VISIBLE_DEVICES="0,1" accelerate launch train_pisasr.py \
+CUDA_VISIBLE_DEVICES="6,7" accelerate launch train_pisasr.py \
     --pretrained_model_path="preset/models/sd-2.1-base" \
     --pretrained_model_path_csd="preset/models/sd-2.1-base" \
     --train_folder="../HC18/training_set" \
@@ -52,7 +52,7 @@ python test_pisasr.py \
 
 ########################################
 # 2. deg_file_path="params.yml" (對照組：real-esrgan degradation)
-CUDA_VISIBLE_DEVICES="0,1" accelerate launch train_pisasr.py \
+CUDA_VISIBLE_DEVICES="6,7" accelerate launch train_pisasr.py \
     --pretrained_model_path="preset/models/sd-2.1-base" \
     --pretrained_model_path_csd="preset/models/sd-2.1-base" \
     --train_folder="../HC18/training_set" \

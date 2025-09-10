@@ -7,7 +7,7 @@
 ########################################
 
 ## train
-CUDA_VISIBLE_DEVICES="4" accelerate launch train_pisasr.py \
+CUDA_VISIBLE_DEVICES="6,7" accelerate launch train_pisasr.py \
     --pretrained_model_path="preset/models/sd-2.1-base" \
     --pretrained_model_path_csd="preset/models/sd-2.1-base" \
     --train_folder="../HC18/training_set" \
@@ -58,7 +58,7 @@ python test_pisasr.py \
 ########################################
 
 ## train
-CUDA_VISIBLE_DEVICES="4" accelerate launch train_pisasr.py \
+CUDA_VISIBLE_DEVICES="6,7" accelerate launch train_pisasr.py \
     --pretrained_model_path="preset/models/sd-2.1-base" \
     --pretrained_model_path_csd="preset/models/sd-2.1-base" \
     --train_folder="../HC18/training_set" \
