@@ -257,6 +257,15 @@ if __name__ == "__main__":
         config=vars(args)
     )
 
+    myseed = 8888
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    np.random.seed(myseed)
+    torch.manual_seed(myseed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(myseed)
+    random.seed(myseed)
+
     write_image_paths(args.train_folder, args.dataset_txt_paths, exts=[".png", ".jpg"])
 
     main(args)

@@ -54,7 +54,7 @@ def parse_args(input_args=None):
     parser.add_argument("--train_batch_size", type=int, default=1, help="Batch size (per device) for the training dataloader.")
     parser.add_argument("--num_training_epochs", type=int, default=10000)
     parser.add_argument("--max_train_steps", type=int, default=1001,) # 預設 1001 step 後停止訓練
-    parser.add_argument("--pix_steps", type=int, default=4000,)
+    parser.add_argument("--pix_steps", type=int, default=500,)
     parser.add_argument("--checkpointing_steps", type=int, default=500,)
     parser.add_argument("--eval_freq", type=int, default=500, )
     parser.add_argument("--gradient_accumulation_steps", type=int, default=2, help="Number of updates steps to accumulate before performing a backward/update pass.",)
