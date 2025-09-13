@@ -11,7 +11,7 @@ def parse_args(input_args=None):
     
     parser.add_argument("--train_folder", default=False)
 
-    parser.add_argument("--is_module", default=False)
+    parser.add_argument("--is_module", default=True)
     parser.add_argument("--tracker_project_name", type=str, default="pisasr2025")
 
     # args for the loss function
@@ -20,28 +20,28 @@ def parse_args(input_args=None):
     parser.add_argument("--lambda_csd", default=1.0, type=float)
 
     # args for the csd training
-    parser.add_argument("--pretrained_model_path_csd", default='preset/models/stable-diffusion-2-1-base', type=str)
+    parser.add_argument("--pretrained_model_path_csd", default='preset/models/sd-2.1-base', type=str)
     parser.add_argument("--min_dm_step_ratio", default=0.02, type=float)
-    parser.add_argument("--max_dm_step_ratio", default=0.98, type=float)
+    parser.add_argument("--max_dm_step_ratio", default=0.5, type=float)
     parser.add_argument("--neg_prompt_csd", default="painting, oil painting, illustration, drawing, art, sketch, oil painting, cartoon, CG Style, 3D render, unreal engine, blurring, dirty, messy, worst quality, low quality, frames, watermark, signature, jpeg artifacts, deformed, lowres, over-smooth", type=str)
     parser.add_argument("--pos_prompt_csd", default="", type=str)
-    parser.add_argument("--cfg_csd", default=1.0, type=float)
+    parser.add_argument("--cfg_csd", default=7.5, type=float)
 
     # args for the `t` test
     parser.add_argument("--timesteps1", default=1, type=float)
     # details about the model architecture
-    parser.add_argument("--pretrained_model_path", default='preset/models/stable-diffusion-2-1-base')
+    parser.add_argument("--pretrained_model_path", default='preset/models/sd-2.1-base')
     # # unet lora setting
     parser.add_argument("--lora_rank_unet_pix", default=4, type=int)
     parser.add_argument("--lora_rank_unet_sem", default=4, type=int)
 
     # dataset options
-    parser.add_argument("--dataset_txt_paths", default='/gt_path.txt', type=str)
-    parser.add_argument("--highquality_dataset_txt_paths", default='/gt_selected_path.txt', type=str)
+    parser.add_argument("--dataset_txt_paths", default='preset/gt_path.txt', type=str)
+    parser.add_argument("--highquality_dataset_txt_paths", default='preset/gt_path.txt', type=str)
     parser.add_argument("--dataset_test_folder",
                         default="/testfolder")
-    parser.add_argument("--null_text_ratio", default=0., type=float)
-    parser.add_argument("--prob", default=0.5, type=float)
+    parser.add_argument("--null_text_ratio", default=0.5, type=float)
+    parser.add_argument("--prob", default=0.0, type=float)
     parser.add_argument("--resolution_ori", type=int, default=512,)
     parser.add_argument("--resolution_tgt", type=int, default=512,)
 
@@ -51,10 +51,10 @@ def parse_args(input_args=None):
     # training details
     parser.add_argument("--output_dir", default='experiments/oup')
     parser.add_argument("--seed", type=int, default=123, help="A seed for reproducible training.")
-    parser.add_argument("--train_batch_size", type=int, default=2, help="Batch size (per device) for the training dataloader.")
+    parser.add_argument("--train_batch_size", type=int, default=1, help="Batch size (per device) for the training dataloader.")
     parser.add_argument("--num_training_epochs", type=int, default=10000)
     parser.add_argument("--max_train_steps", type=int, default=1001,) # 預設 1001 step 後停止訓練
-    parser.add_argument("--pix_steps", type=int, default=10,)
+    parser.add_argument("--pix_steps", type=int, default=4000,)
     parser.add_argument("--checkpointing_steps", type=int, default=500,)
     parser.add_argument("--eval_freq", type=int, default=500, )
     parser.add_argument("--gradient_accumulation_steps", type=int, default=2, help="Number of updates steps to accumulate before performing a backward/update pass.",)
@@ -91,7 +91,7 @@ def parse_args(input_args=None):
         ),
     )
     parser.add_argument("--mixed_precision", type=str, default="fp16", choices=["no", "fp16", "bf16"],)
-    parser.add_argument("--enable_xformers_memory_efficient_attention", action="store_true", help="Whether or not to use xformers.")
+    parser.add_argument("--enable_xformers_memory_efficient_attention", action="store_true", default=True, help="Whether or not to use xformers.")
     parser.add_argument("--set_grads_to_none", action="store_true",)
 
     parser.add_argument("--logging_dir", type=str, default="logs")
@@ -99,6 +99,7 @@ def parse_args(input_args=None):
     parser.add_argument("--align_method", type=str, choices=['wavelet', 'adain', 'nofix'], default='adain')
 
     parser.add_argument("--use_residual_in_training", default=True, type=bool) # 是否在訓練時使用殘差學習 (預設 True)
+    parser.add_argument("--wandb_project_name", type=str, default="test_pisasr") # 設定 wandb 的 project name
     parser.add_argument("--wandb_run_name", default="", type=str) # 設定 wandb 的 run name
 
 

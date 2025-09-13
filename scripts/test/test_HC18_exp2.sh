@@ -23,6 +23,7 @@ python test_pisasr.py \
   --output_dir experiments/HC18/exp2/1/test \
   --lambda_pix 0.0 \
   --lambda_sem 1.0 \
+  --wandb_project_name "pisasr-exp2" \
   --wandb_run_name "exp2_1_lambda_pix0.0_lambda_sem1.0 (test)"
 
 # 2. lambda_pix=0.2, lambda_sem=1.0
@@ -36,6 +37,7 @@ python test_pisasr.py \
   --output_dir experiments/HC18/exp2/2/test \
   --lambda_pix 0.2 \
   --lambda_sem 1.0 \
+  --wandb_project_name "pisasr-exp2" \
   --wandb_run_name "exp2_2_lambda_pix0.2_lambda_sem1.0 (test)"
 
 # 3. lambda_pix=0.5, lambda_sem=1.0
@@ -49,6 +51,7 @@ python test_pisasr.py \
   --output_dir experiments/HC18/exp2/3/test \
   --lambda_pix 0.5 \
   --lambda_sem 1.0 \
+  --wandb_project_name "pisasr-exp2" \
   --wandb_run_name "exp2_3_lambda_pix0.5_lambda_sem1.0 (test)"
 
 # 4. lambda_pix=0.8, lambda_sem=1.0
@@ -62,6 +65,7 @@ python test_pisasr.py \
   --output_dir experiments/HC18/exp2/4/test \
   --lambda_pix 0.8 \
   --lambda_sem 1.0 \
+  -wandb_project_name "pisasr-exp2" \
   --wandb_run_name "exp2_4_lambda_pix0.8_lambda_sem1.0 (test)"
 
 # 5. lambda_pix=1.0, lambda_sem=1.0
@@ -75,6 +79,7 @@ python test_pisasr.py \
   --output_dir experiments/HC18/exp2/5/test \
   --lambda_pix 1.0 \
   --lambda_sem 1.0 \
+  -wandb_project_name "pisasr-exp2" \
   --wandb_run_name "exp2_5_lambda_pix1.0_lambda_sem1.0 (test)"
 
 # 6. lambda_pix=1.0, lambda_sem=0.0
@@ -88,6 +93,7 @@ python test_pisasr.py \
   --output_dir experiments/HC18/exp2/6/test \
   --lambda_pix 1.0 \
   --lambda_sem 0.0 \
+  -wandb_project_name "pisasr-exp2" \
   --wandb_run_name "exp2_6_lambda_pix1.0_lambda_sem0.0 (test)"
 
 # 7. lambda_pix=1.0, lambda_sem=0.2
@@ -101,6 +107,7 @@ python test_pisasr.py \
   --output_dir experiments/HC18/exp2/7/test \
   --lambda_pix 1.0 \
   --lambda_sem 0.2 \
+  -wandb_project_name "pisasr-exp2" \
   --wandb_run_name "exp2_7_lambda_pix1.0_lambda_sem0.2 (test)"
 
 # 8. lambda_pix=1.0, lambda_sem=0.5
@@ -114,6 +121,7 @@ python test_pisasr.py \
   --output_dir experiments/HC18/exp2/8/test \
   --lambda_pix 1.0 \
   --lambda_sem 0.5 \
+  -wandb_project_name "pisasr-exp2" \
   --wandb_run_name "exp2_8_lambda_pix1.0_lambda_sem0.5 (test)"
 
 # 9. lambda_pix=1.0, lambda_sem=0.8
@@ -127,4 +135,5 @@ python test_pisasr.py \
   --output_dir experiments/HC18/exp2/9/test \
   --lambda_pix 1.0 \
   --lambda_sem 0.8 \
+  -wandb_project_name "pisasr-exp2" \
   --wandb_run_name "exp2_9_lambda_pix1.0_lambda_sem0.8 (test)"

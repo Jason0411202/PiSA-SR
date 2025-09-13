@@ -37,6 +37,7 @@ CUDA_VISIBLE_DEVICES="6,7" accelerate launch train_pisasr.py \
     --is_module True \
     --resolution_ori=128 \
     --use_residual_in_training False \
+    --wandb_project_name "pisasr-exp3" \
     --wandb_run_name "exp3_no_residual (train)"
 
 ## test
@@ -51,6 +52,7 @@ python test_pisasr.py \
     --lambda_pix 1.0 \
     --lambda_sem 1.0 \
     --use_residual_in_training False \
+    --wandb_project_name "pisasr-exp3" \
     --wandb_run_name "exp3_no_residual (test)"
 
 ########################################
@@ -88,6 +90,7 @@ CUDA_VISIBLE_DEVICES="6,7" accelerate launch train_pisasr.py \
     --is_module True \
     --resolution_ori=128 \
     --use_residual_in_training True \
+    --wandb_project_name "pisasr-exp3" \
     --wandb_run_name "exp3_with_residual (train)"
 
 ## test
@@ -102,4 +105,5 @@ python test_pisasr.py \
     --lambda_pix 1.0 \
     --lambda_sem 1.0 \
     --use_residual_in_training True \
+    --wandb_project_name "pisasr-exp3" \
     --wandb_run_name "exp3_with_residual (test)"

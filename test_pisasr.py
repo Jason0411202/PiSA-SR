@@ -168,12 +168,12 @@ def pisa_sr(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input_image', '-i', type=str, default='preset/test_datasets', help="path to the input image") # 為了取得 pair data 來計算 PSNR 與 SSIM, 輸入從原始程式中的 LR 改成直接輸入 GT, 程式會自動 degradation 來產生 LR
+    parser.add_argument('--input_image', '-i', type=str, default='../HC18/test_set', help="path to the input image") # 為了取得 pair data 來計算 PSNR 與 SSIM, 輸入從原始程式中的 LR 改成直接輸入 GT, 程式會自動 degradation 來產生 LR
     parser.add_argument('--output_dir', '-o', type=str, default='experiments/test', help="the directory to save the output")
-    parser.add_argument("--pretrained_model_path", type=str, default='preset/models/stable-diffusion-2-1-base')
+    parser.add_argument("--pretrained_model_path", type=str, default='preset/models/sd-2.1-base')
     parser.add_argument('--pretrained_path', type=str, default='preset/models/pisa_sr.pkl', help="path to a model state dict to be used")
     parser.add_argument('--seed', type=int, default=42, help="Random seed to be used")
-    parser.add_argument("--process_size", type=int, default=512) # 輸入的圖片邊長會被至少調整至 process_size // upscale (處理太小的模型用的)
+    parser.add_argument("--process_size", type=int, default=64) # 輸入的圖片邊長會被至少調整至 process_size // upscale (處理太小的模型用的)
     parser.add_argument("--input_resize", type=int) # 將輸入 resize 調整至這個大小 (例如 512) 再進行其他處理
     parser.add_argument("--upscale", type=int, default=4)
     parser.add_argument("--align_method", type=str, choices=['wavelet', 'adain', 'nofix'], default="adain")
@@ -184,6 +184,7 @@ if __name__ == "__main__":
     parser.add_argument("--latent_tiled_size", type=int, default=96) 
     parser.add_argument("--latent_tiled_overlap", type=int, default=32) 
     parser.add_argument("--mixed_precision", type=str, default="fp16")
+    parser.add_argument("--wandb_project_name", type=str, default="test_pisasr")
     parser.add_argument("--wandb_run_name", type=str, default="")
     parser.add_argument("--use_residual_in_training", default=True, type=bool) # 是否在訓練時使用殘差學習 (預設 True)
     parser.add_argument("--default",  action="store_true", help="use default or adjustale setting?") 
@@ -192,7 +193,7 @@ if __name__ == "__main__":
 
     # 初始化 wandb
     wandb.init(
-        project="test_pisasr",
+        project=args.wandb_project_name,
         name=args.wandb_run_name + "_" + run_timestamp,
         config=vars(args)
     )

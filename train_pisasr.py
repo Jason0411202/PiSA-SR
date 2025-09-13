@@ -105,7 +105,13 @@ def main(args):
     # dataset_val = PairedSROnlineTxtDataset(split="test", args=args)
     dl_train = torch.utils.data.DataLoader(dataset_train, batch_size=args.train_batch_size, shuffle=True, num_workers=args.dataloader_num_workers)
     # dl_val = torch.utils.data.DataLoader(dataset_val, batch_size=1, shuffle=False, num_workers=0)
-    
+
+    for i in range(5):
+        train_data_visiual = dataset_train[i]
+        for key in ["conditioning_pixel_values", "output_pixel_values"]:
+            img = train_data_visiual[key].detach().cpu()
+            img = (img * 0.5 + 0.5).clamp(0, 1)  # [-1,1] → [0,1]
+            wandb.log({f"dataset/{i}_{key}": wandb.Image(img, caption=key)})
 
     # init RAM for text prompt extractor
     from ram.models.ram_lora import ram
@@ -246,7 +252,7 @@ if __name__ == "__main__":
 
     # 初始化 wandb
     wandb.init(
-        project="test_pisasr",
+        project=args.wandb_project_name,
         name=args.wandb_run_name + "_" + run_timestamp,
         config=vars(args)
     )

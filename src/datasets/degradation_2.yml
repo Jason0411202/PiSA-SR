@@ -1,0 +1,41 @@
+scale: 4
+color_jitter_prob: 0.0
+gray_prob: 0.0
+
+# the first degradation process
+resize_prob: [0.15, 0.55, 0.3]  # up, down, keep (比 heavy 少些 downsampling)
+resize_range: [0.6, 1.2]
+gaussian_noise_prob: 0.30
+noise_range: [1, 8]
+poisson_scale_range: [0.02, 1.0]
+gray_noise_prob: 0.25
+jpeg_range: [70, 95]
+
+# the second degradation process
+second_blur_prob: 0.35
+resize_prob2: [0.25, 0.35, 0.4]
+resize_range2: [0.8, 1.1]
+gaussian_noise_prob2: 0.25
+noise_range2: [1, 8]
+poisson_scale_range2: [0.02, 0.8]
+gray_noise_prob2: 0.25
+jpeg_range2: [75, 100]
+
+kernel_info:
+    blur_kernel_size: 15
+    kernel_list: ['iso', 'aniso', 'generalized_iso', 'generalized_aniso', 'plateau_iso', 'plateau_aniso']
+    kernel_prob: [0.50, 0.25, 0.12, 0.02, 0.09, 0.02]  # sums to 1.0
+    sinc_prob: 0.06
+    blur_sigma: [0.2, 1.8]
+    betag_range: [0.7, 3]
+    betap_range: [1, 1.8]
+
+    blur_kernel_size2: 15
+    kernel_list2: ['iso', 'aniso', 'generalized_iso', 'generalized_aniso', 'plateau_iso', 'plateau_aniso']
+    kernel_prob2: [0.50, 0.25, 0.12, 0.02, 0.09, 0.02]
+    sinc_prob2: 0.06
+    blur_sigma2: [0.2, 1.2]
+    betag_range2: [0.7, 3]
+    betap_range2: [1, 1.8]
+
+    final_sinc_prob: 0.50

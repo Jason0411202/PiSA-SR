@@ -31,6 +31,7 @@ CUDA_VISIBLE_DEVICES="0,5" accelerate launch train_pisasr.py \
     --tracker_project_name "PiSASR" \
     --is_module True \
     --resolution_ori=128 \
+    --wandb_project_name "pisasr-exp1" \
     --wandb_run_name "exp1_lora_rank_unet_sem0 (train)"
 
 ## 1. test
@@ -44,6 +45,7 @@ python test_pisasr.py \
   --output_dir experiments/HC18/exp1/1/test \
   --lambda_pix 1.0 \
   --lambda_sem 1.0 \
+  --wandb_project_name "pisasr-exp1" \
   --wandb_run_name "exp1_lora_rank_unet_sem0 (test)"
 
 
@@ -77,6 +79,7 @@ CUDA_VISIBLE_DEVICES="0,5" accelerate launch train_pisasr.py \
     --tracker_project_name "PiSASR" \
     --is_module True \
     --resolution_ori=128 \
+    --wandb_project_name "pisasr-exp1" \
     --wandb_run_name "exp1_lora_rank_unet_sem4 (train)"
 
 ## 2. test
@@ -90,4 +93,5 @@ python test_pisasr.py \
   --output_dir experiments/HC18/exp1/2/test \
   --lambda_pix 1.0 \
   --lambda_sem 1.0 \
+  --wandb_project_name "pisasr-exp1" \
   --wandb_run_name "exp1_lora_rank_unet_sem4 (test)"
