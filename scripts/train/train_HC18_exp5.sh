@@ -5,21 +5,6 @@
 TRAIN_DEVICES="1,2"
 TEST_DEVICE="1"
 
-# # 0. deg_file_path="degradation_0.yml" (無 degradation)
-# CUDA_VISIBLE_DEVICES="3,4" accelerate launch train_pisasr.py \
-#     --train_folder="../HC18/training_set" \
-#     --output_dir="experiments/HC18/exp5/0/train" \
-#     --wandb_project_name "pisasr-exp5" \
-#     --wandb_run_name "exp5_deg0 (train)" \
-#     --deg_file_path="degradation_0.yml"
-
-# CUDA_VISIBLE_DEVICES=6 \
-# python test_pisasr.py \
-#   --pretrained_path experiments/HC18/exp5/0/train/checkpoints/model_1001.pkl \
-#   --output_dir experiments/HC18/exp5/0/test \
-#   --wandb_project_name "pisasr-exp5" \
-#   --wandb_run_name "exp5_deg0 (test)"
-
 # 1. deg_file_path="degradation_1.yml" (輕度 degradation)
 CUDA_VISIBLE_DEVICES=${TRAIN_DEVICES} accelerate launch train_pisasr.py \
     --train_folder="../HC18/training_set" \

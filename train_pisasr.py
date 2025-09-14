@@ -33,6 +33,8 @@ import wandb
 import datetime
 
 run_timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S") # 計算執行程式時的當前時間
+# g = torch.Generator()
+# g.manual_seed(8888)
 
 def main(args):
     logging_dir = Path(args.output_dir, args.logging_dir)
@@ -103,6 +105,7 @@ def main(args):
     # initialize the dataset
     dataset_train = PairedSROnlineTxtDataset(split="train", args=args)
     # dataset_val = PairedSROnlineTxtDataset(split="test", args=args)
+    # dl_train = torch.utils.data.DataLoader(dataset_train, batch_size=args.train_batch_size, shuffle=True, num_workers=args.dataloader_num_workers, generator=g)
     dl_train = torch.utils.data.DataLoader(dataset_train, batch_size=args.train_batch_size, shuffle=True, num_workers=args.dataloader_num_workers)
     # dl_val = torch.utils.data.DataLoader(dataset_val, batch_size=1, shuffle=False, num_workers=0)
 
