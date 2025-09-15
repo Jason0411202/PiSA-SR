@@ -11,8 +11,8 @@
 # 8. lambda_pix=1.0, lambda_sem=0.5
 # 9. lambda_pix=1.0, lambda_sem=0.8
 
-TRAIN_DEVICES="5,6"
-TEST_DEVICE="5"
+TRAIN_DEVICES="4,5"
+TEST_DEVICE="4"
 
 CUDA_VISIBLE_DEVICES=${TRAIN_DEVICES} accelerate launch train_pisasr.py \
     --train_folder="../HC18/training_set" \
