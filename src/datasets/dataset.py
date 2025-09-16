@@ -64,6 +64,11 @@ class PairedSROnlineTxtDataset(torch.utils.data.Dataset):
                     gt_img = Image.open(self.hq_gt_list[idx[0]]).convert('RGB')
             else:
                 gt_img = Image.open(self.gt_list[idx]).convert('RGB')
+
+            # 確保 train 圖片大小至少為 resolution_ori * resolution_ori
+            w, h = gt_img.size
+            if w < self.args.resolution_ori or h < self.args.resolution_ori:
+                gt_img = gt_img.resize((max(w, self.args.resolution_ori), max(h, self.args.resolution_ori)))
             gt_img = self.crop_preproc(gt_img)
 
             output_t, img_t = self.degradation.degrade_process(np.asarray(gt_img)/255., resize_bak=True)

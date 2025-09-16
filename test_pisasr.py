@@ -15,6 +15,7 @@ from skimage.metrics import peak_signal_noise_ratio as compare_psnr
 from skimage.metrics import structural_similarity as compare_ssim
 import wandb
 import datetime
+import shutil
 from src.my_utils.utils import compute_fid
 
 run_timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S") # 計算執行程式時的當前時間
@@ -26,7 +27,10 @@ def pisa_sr(args):
 
     # Get all input images
     if os.path.isdir(args.input_image):
-        image_names = sorted(glob.glob(f'{args.input_image}/*.png'))
+        image_names = sorted(
+            glob.glob(f'{args.input_image}/*.png') + 
+            glob.glob(f'{args.input_image}/*.jpg')
+    )
     else:
         image_names = [args.input_image]
 
@@ -34,8 +38,17 @@ def pisa_sr(args):
     lr_image_path = os.path.join(args.output_dir, 'LR')
     hr_image_path = os.path.join(args.output_dir, 'HR')
     gt_image_path = os.path.join(args.output_dir, 'GT')
+
+    if os.path.exists(lr_image_path):
+        shutil.rmtree(lr_image_path)   # 先刪掉整個資料夾
     os.makedirs(lr_image_path, exist_ok=True) # 將 GT 中的圖片 downsampling 後，變成 LR 並存在這裡
+
+    if os.path.exists(hr_image_path):
+        shutil.rmtree(hr_image_path)   # 先刪掉整個資料夾
     os.makedirs(hr_image_path, exist_ok=True) # LR 經過模型處理後，變成 HR後會存在這裡
+
+    if os.path.exists(gt_image_path):
+        shutil.rmtree(gt_image_path)   # 先刪掉整個資料夾
     os.makedirs(gt_image_path, exist_ok=True) # 原始圖片經過 resize 後會存在這裡
     print(f'There are {len(image_names)} images.')
 
@@ -45,6 +58,9 @@ def pisa_sr(args):
     psnr_scores = []
     ssim_scores = []
     for idx, image_name in enumerate(image_names, start=1):
+        if idx > args.max_inference_imgs_num:
+            print(f"已達到最大推論圖片數量 {args.max_inference_imgs_num}，停止處理。")
+            break
         # 檢查檔案是否存在
         if not os.path.exists(image_name):
             print(f"[警告] 找不到檔案 {image_name}，略過。")
@@ -181,13 +197,14 @@ if __name__ == "__main__":
     parser.add_argument("--lambda_sem", default=1.0, type=float, help="the scale for sementic-level enhancements")
     parser.add_argument("--vae_decoder_tiled_size", type=int, default=224)
     parser.add_argument("--vae_encoder_tiled_size", type=int, default=1024)
-    parser.add_argument("--latent_tiled_size", type=int, default=96) 
-    parser.add_argument("--latent_tiled_overlap", type=int, default=32) 
+    parser.add_argument("--latent_tiled_size", type=int, default=256) 
+    parser.add_argument("--latent_tiled_overlap", type=int, default=64) 
     parser.add_argument("--mixed_precision", type=str, default="fp16")
     parser.add_argument("--wandb_project_name", type=str, default="test_pisasr")
     parser.add_argument("--wandb_run_name", type=str, default="")
     parser.add_argument("--use_residual_in_training", default=True, type=bool) # 是否在訓練時使用殘差學習 (預設 True)
     parser.add_argument("--default",  action="store_true", help="use default or adjustale setting?") 
+    parser.add_argument("--max_inference_imgs_num",  default=500, type=int, help="max inference images number to evaluate PSNR, SSIM, FID") 
 
     args = parser.parse_args()
 
