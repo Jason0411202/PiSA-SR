@@ -20,7 +20,8 @@ python test_pisasr.py \
     --pretrained_path experiments/HC18/exp3/1/train/checkpoints/model_1001.pkl \
     --output_dir experiments/HC18/exp3/1/test \
     --wandb_project_name "pisasr-exp3" \
-    --wandb_run_name "exp3_no_residual (test)"
+    --wandb_run_name "exp3_no_residual (test)" \
+    --use_residual_in_training False
 
 # 使用殘差進行訓練 (對照組)
 # Training
@@ -37,4 +38,5 @@ python test_pisasr.py \
     --pretrained_path experiments/HC18/exp3/2/train/checkpoints/model_1001.pkl \
     --output_dir experiments/HC18/exp3/2/test \
     --wandb_project_name "pisasr-exp3" \
-    --wandb_run_name "exp3_with_residual (test)"
+    --wandb_run_name "exp3_with_residual (test)" \
+    --use_residual_in_training True
