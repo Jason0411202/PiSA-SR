@@ -17,6 +17,8 @@ import wandb
 import datetime
 import shutil
 from src.my_utils.utils import compute_fid
+from src.datasets.realesrgan import RealESRGAN_degradation
+from basicsr.utils import tensor2img
 
 run_timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S") # 計算執行程式時的當前時間
 
@@ -24,6 +26,9 @@ def pisa_sr(args):
     # Initialize the model
     model = PiSASR_eval(args)
     model.set_eval()
+
+    deg_file_path = "params.yml"
+    realesrgan_degradation = RealESRGAN_degradation(deg_file_path, device='cpu')
 
     # Get all input images
     if os.path.isdir(args.input_image):
@@ -78,11 +83,16 @@ def pisa_sr(args):
             resize_flag = True
 
         bname = os.path.basename(image_name)
-        # Step 1. 製作 Ground Truth (GT) → args.input_resize x args.input_resize
-        if args.input_resize is not None:
-            gt_image = input_image.resize((args.input_resize, args.input_resize), Image.LANCZOS)
-        else:
+
+        # Step 1. 製作 Ground Truth (GT)
+        if args.degradation_type == 'bicubic_4x': # 如果是 bicubic_4x 就直接用 input image 當 GT
             gt_image = input_image
+        elif args.degradation_type == 'realesrgan_4x': # 如果是 realesrgan_4x 就用他的 degradation 來一次性產生 GT 與 LR (因為可能會有水平翻轉等問題, 因此 GT 也會動到)
+            gt_image, lr_image = realesrgan_degradation.degrade_process(np.asarray(input_image)/255., resize_bak=False)
+            gt_image = torch.clamp((gt_image * 255.0).round(), 0, 255) # 映射回 0-255
+            gt_image = tensor2img(gt_image, out_type=np.uint8, min_max=(0, 255)) # tensor to numpy
+            gt_image = Image.fromarray(gt_image) # numpy to PIL
+
         gt_width = gt_image.width - gt_image.width % (8 * args.upscale) # 確保是 8 * args.upscale 的倍數
         gt_height = gt_image.height - gt_image.height % (8 * args.upscale) # 確保是 8 * args.upscale 的倍數
         gt_image = gt_image.resize((gt_width, gt_height), Image.LANCZOS)
@@ -92,16 +102,22 @@ def pisa_sr(args):
                 "GT": [wandb.Image(gt_image, caption=f"GT-{bname}")],
         })
 
-        # Step 2. Degradation. Downsample 成 args.input_resize // args.upscale (簡單的 bicubic)
-        if args.input_resize is not None:
-            lr_image = gt_image.resize((args.input_resize // args.upscale, args.input_resize // args.upscale), Image.BICUBIC)
-        else:
+        # Step 2. Degradation. 將 GT Downsample 成 LR
+        if args.degradation_type == 'bicubic_4x': # 如果是 bicubic_4x 就直接 downsample
             lr_image = gt_image.resize((gt_image.size[0] // args.upscale, gt_image.size[1] // args.upscale), Image.BICUBIC)
+        elif args.degradation_type == 'realesrgan_4x': # 如果是 realesrgan_4x, 因為已經在上一步產生 downsampled 的 LR 了, 這裡就只需要映射回 0-255 即可
+            lr_image = torch.clamp((lr_image * 255.0).round(), 0, 255) # 映射回 0-255
+            lr_image = tensor2img(lr_image, out_type=np.uint8, min_max=(0, 255)) # tensor to numpy
+            lr_image = Image.fromarray(lr_image) # numpy to PIL
+            lr_image = lr_image.resize((gt_image.size[0] // args.upscale, gt_image.size[1] // args.upscale), Image.BICUBIC)
+
         lr_image.save(os.path.join(lr_image_path, bname))
         if idx < 5:
             wandb.log({
                 "LR": [wandb.Image(lr_image, caption=f"LR-{bname}")],
             })
+
+        print("input_image.size: ", input_image.size, "gt_image.size: ", gt_image.size, "lr_image.size: ", lr_image.size)
 
         # 將 LR 先強行放大成 rscale 倍, 再由模型修復 artifact
         lr_image_upsample = lr_image.resize((lr_image.size[0] * rscale, lr_image.size[1] * rscale))
@@ -190,9 +206,9 @@ if __name__ == "__main__":
     parser.add_argument('--pretrained_path', type=str, default='preset/models/pisa_sr.pkl', help="path to a model state dict to be used")
     parser.add_argument('--seed', type=int, default=42, help="Random seed to be used")
     parser.add_argument("--process_size", type=int, default=64) # 輸入的圖片邊長會被至少調整至 process_size // upscale (處理太小的模型用的)
-    parser.add_argument("--input_resize", type=int) # 將輸入 resize 調整至這個大小 (例如 512) 再進行其他處理
     parser.add_argument("--upscale", type=int, default=4)
     parser.add_argument("--align_method", type=str, choices=['wavelet', 'adain', 'nofix'], default="adain")
+    parser.add_argument("--degradation_type", type=str, choices=['bicubic_4x', 'realesrgan_4x'], default="bicubic_4x")
     parser.add_argument("--lambda_pix", default=1.0, type=float, help="the scale for pixel-level enhancement")
     parser.add_argument("--lambda_sem", default=1.0, type=float, help="the scale for sementic-level enhancements")
     parser.add_argument("--vae_decoder_tiled_size", type=int, default=224)
