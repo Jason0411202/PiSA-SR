@@ -1,0 +1,41 @@
+scale: 1
+color_jitter_prob: 0.0
+gray_prob: 0.0
+
+# the first degradation process
+resize_prob: [0.0, 0.0, 1.0]  # 多數情況保持原尺寸或小幅縮放
+resize_range: [1.0, 1.0]
+gaussian_noise_prob: 1.0
+noise_range: [15, 15]
+poisson_scale_range: [0.0, 0.0]
+gray_noise_prob: 0.0
+jpeg_range: [99, 100]
+
+# the second degradation process
+second_blur_prob: 0.0
+resize_prob2: [0.0, 0.0, 1.0]
+resize_range2: [1.0, 1.0]
+gaussian_noise_prob2: 0.0
+noise_range2: [0, 0]
+poisson_scale_range2: [0.0, 0.0]
+gray_noise_prob2: 0.0
+jpeg_range2: [99, 100]
+
+kernel_info:
+    blur_kernel_size: 13
+    kernel_list: ['iso']
+    kernel_prob: [1.0]  # sums to 1.0
+    sinc_prob: 0.0
+    blur_sigma: [0.00001, 0.00002]
+    betag_range: [0.0, 0.0]
+    betap_range: [0.0, 0.0]
+
+    blur_kernel_size2: 13
+    kernel_list2: ['iso']
+    kernel_prob2: [1.0]
+    sinc_prob2: 0.00
+    blur_sigma2: [0.00001, 0.00002]
+    betag_range2: [0.0, 0.0]
+    betap_range2: [0.0, 0.0]
+
+    final_sinc_prob: 0.0

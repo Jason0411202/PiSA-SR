@@ -27,7 +27,8 @@ def pisa_sr(args):
     model = PiSASR_eval(args)
     model.set_eval()
 
-    deg_file_path = "params.yml"
+    if args.degradation_file:
+        deg_file_path = args.degradation_file
     realesrgan_degradation = RealESRGAN_degradation(deg_file_path, device='cpu')
 
     # Get all input images
@@ -85,9 +86,9 @@ def pisa_sr(args):
         bname = os.path.basename(image_name)
 
         # Step 1. 製作 Ground Truth (GT)
-        if args.degradation_type == 'bicubic_4x': # 如果是 bicubic_4x 就直接用 input image 當 GT
+        if args.degradation_file == None: # 如果不給 degradation_file, 表示 bicubic_4x, 就直接用 input image 當 GT
             gt_image = input_image
-        elif args.degradation_type == 'realesrgan_4x': # 如果是 realesrgan_4x 就用他的 degradation 來一次性產生 GT 與 LR (因為可能會有水平翻轉等問題, 因此 GT 也會動到)
+        else: # 用的 degradation 來一次性產生 GT 與 LR (因為可能會有水平翻轉等問題, 因此 GT 也會動到)
             gt_image, lr_image = realesrgan_degradation.degrade_process(np.asarray(input_image)/255., resize_bak=False)
             gt_image = torch.clamp((gt_image * 255.0).round(), 0, 255) # 映射回 0-255
             gt_image = tensor2img(gt_image, out_type=np.uint8, min_max=(0, 255)) # tensor to numpy
@@ -103,9 +104,9 @@ def pisa_sr(args):
         })
 
         # Step 2. Degradation. 將 GT Downsample 成 LR
-        if args.degradation_type == 'bicubic_4x': # 如果是 bicubic_4x 就直接 downsample
+        if args.degradation_file == None: # 如果不給 degradation_file, 表示 bicubic_4x, 就直接 downsample
             lr_image = gt_image.resize((gt_image.size[0] // args.upscale, gt_image.size[1] // args.upscale), Image.BICUBIC)
-        elif args.degradation_type == 'realesrgan_4x': # 如果是 realesrgan_4x, 因為已經在上一步產生 downsampled 的 LR 了, 這裡就只需要映射回 0-255 即可
+        else: # 因為已經在上一步產生 downsampled 的 LR 了, 這裡就只需要映射回 0-255 即可
             lr_image = torch.clamp((lr_image * 255.0).round(), 0, 255) # 映射回 0-255
             lr_image = tensor2img(lr_image, out_type=np.uint8, min_max=(0, 255)) # tensor to numpy
             lr_image = Image.fromarray(lr_image) # numpy to PIL
@@ -208,7 +209,7 @@ if __name__ == "__main__":
     parser.add_argument("--process_size", type=int, default=64) # 輸入的圖片邊長會被至少調整至 process_size // upscale (處理太小的模型用的)
     parser.add_argument("--upscale", type=int, default=4)
     parser.add_argument("--align_method", type=str, choices=['wavelet', 'adain', 'nofix'], default="adain")
-    parser.add_argument("--degradation_type", type=str, choices=['bicubic_4x', 'realesrgan_4x'], default="bicubic_4x")
+    parser.add_argument("--degradation_file", type=str, default=None)
     parser.add_argument("--lambda_pix", default=1.0, type=float, help="the scale for pixel-level enhancement")
     parser.add_argument("--lambda_sem", default=1.0, type=float, help="the scale for sementic-level enhancements")
     parser.add_argument("--vae_decoder_tiled_size", type=int, default=224)
