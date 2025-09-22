@@ -127,51 +127,57 @@ class RealESRGAN_degradation(object):
         return img_gt
 
     def random_kernels(self):
-        # ------------------------ Generate kernels (used in the first degradation) ------------------------ #
-        kernel_size = random.choice(self.kernel_range)
-        if np.random.uniform() < self.sinc_prob:
-            # this sinc filter setting is for kernels ranging from [7, 21]
-            if kernel_size < 13:
-                omega_c = np.random.uniform(np.pi / 3, np.pi)
+        if len(self.kernel_list) > 0:
+            # ------------------------ Generate kernels (used in the first degradation) ------------------------ #
+            kernel_size = random.choice(self.kernel_range)
+            if np.random.uniform() < self.sinc_prob:
+                # this sinc filter setting is for kernels ranging from [7, 21]
+                if kernel_size < 13:
+                    omega_c = np.random.uniform(np.pi / 3, np.pi)
+                else:
+                    omega_c = np.random.uniform(np.pi / 5, np.pi)
+                kernel = circular_lowpass_kernel(omega_c, kernel_size, pad_to=False)
             else:
-                omega_c = np.random.uniform(np.pi / 5, np.pi)
-            kernel = circular_lowpass_kernel(omega_c, kernel_size, pad_to=False)
+                kernel = random_mixed_kernels(
+                        self.kernel_list,
+                        self.kernel_prob,
+                        kernel_size,
+                        self.blur_sigma,
+                        self.blur_sigma, [-math.pi, math.pi],
+                        self.betag_range,
+                        self.betap_range,
+                        noise_range=None)
+            # pad kernel
+            pad_size = (21 - kernel_size) // 2
+            kernel = np.pad(kernel, ((pad_size, pad_size), (pad_size, pad_size)))
         else:
-            kernel = random_mixed_kernels(
-                    self.kernel_list,
-                    self.kernel_prob,
+            kernel = None
+
+        if len(self.kernel_list2) > 0:
+            # ------------------------ Generate kernels (used in the second degradation) ------------------------ #
+            kernel_size = random.choice(self.kernel_range)
+            if np.random.uniform() < self.sinc_prob2:
+                if kernel_size < 13:
+                    omega_c = np.random.uniform(np.pi / 3, np.pi)
+                else:
+                    omega_c = np.random.uniform(np.pi / 5, np.pi)
+                kernel2 = circular_lowpass_kernel(omega_c, kernel_size, pad_to=False)
+            else:
+                kernel2 = random_mixed_kernels(
+                    self.kernel_list2,
+                    self.kernel_prob2,
                     kernel_size,
-                    self.blur_sigma,
-                    self.blur_sigma, [-math.pi, math.pi],
-                    self.betag_range,
-                    self.betap_range,
+                    self.blur_sigma2,
+                    self.blur_sigma2, [-math.pi, math.pi],
+                    self.betag_range2,
+                    self.betap_range2,
                     noise_range=None)
-        # pad kernel
-        pad_size = (21 - kernel_size) // 2
-        kernel = np.pad(kernel, ((pad_size, pad_size), (pad_size, pad_size)))
 
-        # ------------------------ Generate kernels (used in the second degradation) ------------------------ #
-        kernel_size = random.choice(self.kernel_range)
-        if np.random.uniform() < self.sinc_prob2:
-            if kernel_size < 13:
-                omega_c = np.random.uniform(np.pi / 3, np.pi)
-            else:
-                omega_c = np.random.uniform(np.pi / 5, np.pi)
-            kernel2 = circular_lowpass_kernel(omega_c, kernel_size, pad_to=False)
+            # pad kernel
+            pad_size = (21 - kernel_size) // 2
+            kernel2 = np.pad(kernel2, ((pad_size, pad_size), (pad_size, pad_size)))
         else:
-            kernel2 = random_mixed_kernels(
-                self.kernel_list2,
-                self.kernel_prob2,
-                kernel_size,
-                self.blur_sigma2,
-                self.blur_sigma2, [-math.pi, math.pi],
-                self.betag_range2,
-                self.betap_range2,
-                noise_range=None)
-
-        # pad kernel
-        pad_size = (21 - kernel_size) // 2
-        kernel2 = np.pad(kernel2, ((pad_size, pad_size), (pad_size, pad_size)))
+            kernel2 = None
 
         # ------------------------------------- sinc kernel ------------------------------------- #
         if np.random.uniform() < self.final_sinc_prob:
@@ -182,8 +188,10 @@ class RealESRGAN_degradation(object):
         else:
             sinc_kernel = self.pulse_tensor
 
-        kernel = torch.FloatTensor(kernel)
-        kernel2 = torch.FloatTensor(kernel2) 
+        if kernel is not None:
+            kernel = torch.FloatTensor(kernel)
+        if kernel2 is not None:
+            kernel2 = torch.FloatTensor(kernel2) 
 
         return kernel, kernel2, sinc_kernel
 
@@ -191,16 +199,24 @@ class RealESRGAN_degradation(object):
     def degrade_process(self, img_gt, resize_bak=False):
         img_gt = self.random_augment(img_gt)
         kernel1, kernel2, sinc_kernel = self.random_kernels()
-        img_gt, kernel1, kernel2, sinc_kernel = img_gt.to(self.device), kernel1.to(self.device), kernel2.to(self.device), sinc_kernel.to(self.device)
+
+        img_gt = img_gt.to(self.device)
+        sinc_kernel = sinc_kernel.to(self.device)
+        if kernel1 is not None:
+            kernel1 = kernel1.to(self.device)
+        if kernel2 is not None:
+            kernel2 = kernel2.to(self.device)
         #img_gt = self.usm_shaper(img_gt) # shaper gt
         ori_h, ori_w = img_gt.size()[2:4]
 
         #scale_final = random.randint(4, 16)
         scale_final = 4
 
+        out = img_gt
         # ----------------------- The first degradation process ----------------------- #
         # blur
-        out = filter2D(img_gt, kernel1)
+        if kernel1 is not None:
+            out = filter2D(img_gt, kernel1)
         # random resize
         updown_type = random.choices(['up', 'down', 'keep'], self.opt['resize_prob'])[0]
         if updown_type == 'up':
@@ -224,14 +240,16 @@ class RealESRGAN_degradation(object):
                 clip=True,
                 rounds=False)
         # JPEG compression
-        jpeg_p = out.new_zeros(out.size(0)).uniform_(*self.opt['jpeg_range'])
-        out = torch.clamp(out, 0, 1)
-        out = self.jpeger(out, quality=jpeg_p)
+        if self.opt['jpeg_range'] != [100, 100]:
+            jpeg_p = out.new_zeros(out.size(0)).uniform_(*self.opt['jpeg_range'])
+            out = torch.clamp(out, 0, 1)
+            out = self.jpeger(out, quality=jpeg_p)
 
         # ----------------------- The second degradation process ----------------------- #
         # blur
         if np.random.uniform() < self.opt['second_blur_prob']:
-            out = filter2D(out, kernel2)
+            if kernel2 is not None:
+                out = filter2D(out, kernel2)
         # random resize
         updown_type = random.choices(['up', 'down', 'keep'], self.opt['resize_prob2'])[0]
         if updown_type == 'up':
@@ -269,14 +287,16 @@ class RealESRGAN_degradation(object):
             out = F.interpolate(out, size=(ori_h // scale_final, ori_w // scale_final), mode=mode)
             out = filter2D(out, sinc_kernel)
             # JPEG compression
-            jpeg_p = out.new_zeros(out.size(0)).uniform_(*self.opt['jpeg_range2'])
-            out = torch.clamp(out, 0, 1)
-            out = self.jpeger(out, quality=jpeg_p)
+            if self.opt['jpeg_range2'] != [100, 100]:
+                jpeg_p = out.new_zeros(out.size(0)).uniform_(*self.opt['jpeg_range2'])
+                out = torch.clamp(out, 0, 1)
+                out = self.jpeger(out, quality=jpeg_p)
         else:
             # JPEG compression
-            jpeg_p = out.new_zeros(out.size(0)).uniform_(*self.opt['jpeg_range2'])
-            out = torch.clamp(out, 0, 1)
-            out = self.jpeger(out, quality=jpeg_p)
+            if self.opt['jpeg_range2'] != [100, 100]:
+                jpeg_p = out.new_zeros(out.size(0)).uniform_(*self.opt['jpeg_range2'])
+                out = torch.clamp(out, 0, 1)
+                out = self.jpeger(out, quality=jpeg_p)
             # resize back + the final sinc filter
             mode = random.choice(['area', 'bilinear', 'bicubic'])
             out = F.interpolate(out, size=(ori_h // scale_final, ori_w // scale_final), mode=mode)
