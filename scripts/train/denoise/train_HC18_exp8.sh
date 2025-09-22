@@ -3,8 +3,8 @@
 # Gaussian noise range: 15, 30, 60, 90
 # =========================================================
 
-TRAIN_DEVICES="4,5"
-TEST_DEVICE="4"
+TRAIN_DEVICES="0,1"
+TEST_DEVICE="0"
 
 # -------------------------
 # exp8/1: Gaussian noise level 15
@@ -14,6 +14,7 @@ CUDA_VISIBLE_DEVICES=${TRAIN_DEVICES} accelerate launch train_pisasr.py \
     --output_dir="experiments/HC18/exp8/1/train" \
     --wandb_project_name "pisasr-exp8" \
     --wandb_run_name "exp8-denoising-noise_range_15 (train)" \
+    --pix_steps 1001 \
     --deg_file_path="gaussian_noise_15.yml" \
 
 # Testing
@@ -37,6 +38,7 @@ CUDA_VISIBLE_DEVICES=${TRAIN_DEVICES} accelerate launch train_pisasr.py \
     --output_dir="experiments/HC18/exp8/2/train" \
     --wandb_project_name "pisasr-exp8" \
     --wandb_run_name "exp8-denoising-noise_range_30 (train)" \
+    --pix_steps 1001 \
     --deg_file_path="gaussian_noise_30.yml" \
 
 # Testing
@@ -60,6 +62,7 @@ CUDA_VISIBLE_DEVICES=${TRAIN_DEVICES} accelerate launch train_pisasr.py \
     --output_dir="experiments/HC18/exp8/3/train" \
     --wandb_project_name "pisasr-exp8" \
     --wandb_run_name "exp8-denoising-noise_range_60 (train)" \
+    --pix_steps 1001 \
     --deg_file_path="gaussian_noise_60.yml" \
 
 # Testing
@@ -83,6 +86,7 @@ CUDA_VISIBLE_DEVICES=${TRAIN_DEVICES} accelerate launch train_pisasr.py \
     --output_dir="experiments/HC18/exp8/4/train" \
     --wandb_project_name "pisasr-exp8" \
     --wandb_run_name "exp8-denoising-noise_range_90 (train)" \
+    --pix_steps 1001 \
     --deg_file_path="gaussian_noise_90.yml" \
 
 # Testing
