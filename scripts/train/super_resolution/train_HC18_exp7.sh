@@ -2,8 +2,8 @@
 # 目的：比較訓練時是否使用殘差 (x_denoised = encoded_control - model_pred) "在 test degradation 嚴重時" 對結果的影響
 # pisasr.py 中包含的 `x_denoised = encoded_control - model_pred` 便是殘差邏輯
 
-TRAIN_DEVICES="1,2"
-TEST_DEVICE="1"
+TRAIN_DEVICES="6,7"
+TEST_DEVICE="6"
 
 # 不使用殘差進行訓練
 # Training
@@ -19,7 +19,7 @@ CUDA_VISIBLE_DEVICES=${TEST_DEVICE} \
 python test_pisasr.py \
     --pretrained_path experiments/HC18/exp7/1/train/checkpoints/model_1001.pkl \
     --output_dir experiments/HC18/exp7/1/test \
-    --degradation_type "realesrgan_4x" \
+    --degradation_file "params.yml" \
     --wandb_project_name "pisasr-exp7" \
     --wandb_run_name "exp7_no_residual (test)" \
     --use_residual_in_training False
@@ -38,7 +38,7 @@ CUDA_VISIBLE_DEVICES=${TEST_DEVICE} \
 python test_pisasr.py \
     --pretrained_path experiments/HC18/exp7/2/train/checkpoints/model_1001.pkl \
     --output_dir experiments/HC18/exp7/2/test \
-    --degradation_type "realesrgan_4x" \
+    --degradation_file "params.yml" \
     --wandb_project_name "pisasr-exp7" \
     --wandb_run_name "exp7_with_residual (test)" \
     --use_residual_in_training True

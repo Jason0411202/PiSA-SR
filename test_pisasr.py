@@ -19,6 +19,7 @@ import shutil
 from src.my_utils.utils import compute_fid
 from src.datasets.realesrgan import RealESRGAN_degradation
 from basicsr.utils import tensor2img
+import random
 
 run_timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S") # 計算執行程式時的當前時間
 
@@ -29,7 +30,7 @@ def pisa_sr(args):
 
     if args.degradation_file:
         deg_file_path = args.degradation_file
-    realesrgan_degradation = RealESRGAN_degradation(deg_file_path, device='cpu')
+        realesrgan_degradation = RealESRGAN_degradation(deg_file_path, device='cpu')
 
     # Get all input images
     if os.path.isdir(args.input_image):
