@@ -3,8 +3,8 @@
 # Gaussian noise range: 15, 30, 60, 90
 # =========================================================
 
-TRAIN_DEVICES="0,1"
-TEST_DEVICE="0"
+TRAIN_DEVICES="4,5"
+TEST_DEVICE="4"
 
 # -------------------------
 # exp8/1: Gaussian noise level 15

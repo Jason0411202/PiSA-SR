@@ -154,34 +154,33 @@ class CSDLoss(torch.nn.Module):
         negative_prompt_embeds,
         args,
     ):
-        bsz = latents.shape[0]
-        min_dm_step = int(self.sched.config.num_train_timesteps * args.min_dm_step_ratio)
-        max_dm_step = int(self.sched.config.num_train_timesteps * args.max_dm_step_ratio)
+        bsz = latents.shape[0] # batch size
+        min_dm_step = int(self.sched.config.num_train_timesteps * args.min_dm_step_ratio) # 決定 timestep 的範圍
+        max_dm_step = int(self.sched.config.num_train_timesteps * args.max_dm_step_ratio) # 決定 timestep 的範圍
 
-        timestep = torch.randint(min_dm_step, max_dm_step, (bsz,), device=latents.device).long()
-        noise = torch.randn_like(latents)
-        noisy_latents = self.sched.add_noise(latents, noise, timestep)
+        timestep = torch.randint(min_dm_step, max_dm_step, (bsz,), device=latents.device).long() # sample timestep
+        noise = torch.randn_like(latents) # sample noise
+        noisy_latents = self.sched.add_noise(latents, noise, timestep) # 加 noise
 
         with torch.no_grad():
-            noisy_latents_input = torch.cat([noisy_latents] * 2)
-            timestep_input = torch.cat([timestep] * 2)
-            prompt_embeds = torch.cat([negative_prompt_embeds, prompt_embeds], dim=0)
-            noise_pred = self.forward_latent(
+            noisy_latents_input = torch.cat([noisy_latents] * 2) # 複製 noisy_latents, 因為要同時做有條件和無條件的 prediction
+            timestep_input = torch.cat([timestep] * 2) # 複製 timestep, 因為要同時做有條件和無條件的 prediction
+            prompt_embeds = torch.cat([negative_prompt_embeds, prompt_embeds], dim=0) # 組合無條件和有條件的 prompt_embeds
+            noise_pred = self.forward_latent( # f()
                 self.unet_fix,
                 latents=noisy_latents_input.to(dtype=torch.float16),
                 timestep=timestep_input,
                 prompt_embeds=prompt_embeds.to(dtype=torch.float16),
             )
-            noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
-            noise_pred = noise_pred_uncond + args.cfg_csd * (noise_pred_text - noise_pred_uncond)
+            noise_pred_uncond, noise_pred_text = noise_pred.chunk(2) # noise_pred_uncond 是無條件的 prediction, noise_pred_text 是有條件的 prediction
+            noise_pred = noise_pred_uncond + args.cfg_csd * (noise_pred_text - noise_pred_uncond) # f(zt​, ϵreal(zt, t)​) − f(zt​, ϵreal(zt, t, c)​)
             noise_pred.to(dtype=torch.float32)
             noise_pred_uncond.to(dtype=torch.float32)
 
-            pred_real_latents = self.eps_to_mu(self.sched, noise_pred, noisy_latents, timestep)
-            pred_fake_latents = self.eps_to_mu(self.sched, noise_pred_uncond, noisy_latents, timestep)
-            
+            pred_real_latents = self.eps_to_mu(self.sched, noise_pred, noisy_latents, timestep) # 去掉 noise 後的 latents (有條件)
+            pred_fake_latents = self.eps_to_mu(self.sched, noise_pred_uncond, noisy_latents, timestep) # 去掉 noise 後的 latents (無條件)
 
-        weighting_factor = torch.abs(latents - pred_real_latents).mean(dim=[1, 2, 3], keepdim=True)
+        weighting_factor = torch.abs(latents - pred_real_latents).mean(dim=[1, 2, 3], keepdim=True) # timestep weighting
 
         grad = (pred_fake_latents - pred_real_latents) / weighting_factor
         loss = F.mse_loss(latents, self.stopgrad(latents - grad))
@@ -310,20 +309,19 @@ class PiSASR(torch.nn.Module):
         return torch.concat(prompt_embeds, dim=0)
 
     def forward(self, c_t, c_tgt, batch=None, args=None):
-
-        bs = c_t.shape[0]
+        bs = c_t.shape[0] # batch size
         encoded_control = self.vae_fix.encode(c_t).latent_dist.sample() * self.vae_fix.config.scaling_factor
-        # calculate prompt_embeddings and neg_prompt_embeddings
-        prompt_embeds = self.encode_prompt(batch["prompt"])
-        neg_prompt_embeds = self.encode_prompt(batch["neg_prompt"])
-        null_prompt_embeds = self.encode_prompt(batch["null_prompt"])
+        # calculate prompt_embeddings and neg_prompt_embeddings (作者用的是 sd-2.1-base 的 tokenizer)
+        prompt_embeds = self.encode_prompt(batch["prompt"]) # 將 batch["prompt"] (正向提示詞) encode 成 prompt_embeds
+        neg_prompt_embeds = self.encode_prompt(batch["neg_prompt"]) # 將 batch["neg_prompt"] (負向提示詞) encode 成 neg_prompt_embeds
+        null_prompt_embeds = self.encode_prompt(batch["null_prompt"]) # 將 batch["null_prompt"] (空提示詞) encode 成 null_prompt_embeds
 
-        if random.random() < args.null_text_ratio:
+        if random.random() < args.null_text_ratio: # 機率性的將正向提示詞換成空提示詞
             pos_caption_enc = null_prompt_embeds
         else:
             pos_caption_enc = prompt_embeds
 
-        model_pred = self.unet(encoded_control, self.timesteps1, encoder_hidden_states=pos_caption_enc.to(torch.float32),).sample
+        model_pred = self.unet(encoded_control, self.timesteps1, encoder_hidden_states=pos_caption_enc.to(torch.float32),).sample # 使用 pos_caption_enc 做為條件
 
         # ablation study: 是否使用殘差學習
         if self.args.use_residual_in_training == True:

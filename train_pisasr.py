@@ -161,10 +161,11 @@ def main(args):
     for epoch in range(0, args.num_training_epochs):
         for step, batch in enumerate(dl_train):
             with accelerator.accumulate(net_pisasr):
-                x_src = batch["conditioning_pixel_values"]
-                x_tgt = batch["output_pixel_values"]
+                x_src = batch["conditioning_pixel_values"] # LR
+                x_tgt = batch["output_pixel_values"] # GT
 
-                # get text prompts from GT
+                # get text prompts from GT 
+                # 1. 從 GT 圖片中, 透過 RAM 模型取得 text prompt
                 x_tgt_ram = ram_transforms(x_tgt*0.5+0.5)
                 caption = inference(x_tgt_ram.to(dtype=torch.float16), RAM)
                 batch["prompt"] = [f'{each_caption}, {args.pos_prompt_csd}' for each_caption in caption]
@@ -181,12 +182,14 @@ def main(args):
                     lambda_l2 = args.lambda_l2
                     lambda_lpips = args.lambda_lpips
                     lambda_csd = args.lambda_csd
-                    
+                
+                # 2. forward process, 這步有包含 text prompt 輸入 (放在 batch 中)
                 x_tgt_pred, latents_pred, prompt_embeds, neg_prompt_embeds = net_pisasr(x_src, x_tgt, batch=batch, args=args)
                 loss_l2 = F.mse_loss(x_tgt_pred.float(), x_tgt.float(), reduction="mean") * lambda_l2
                 loss_lpips = net_lpips(x_tgt_pred.float(), x_tgt.float()).mean() * lambda_lpips
                 loss = loss_l2 + loss_lpips
                 # reg loss
+                # 3. 計算 CSD loss, 其中的 condition 便是 text prompt embeddings
                 loss_csd = net_csd.cal_csd(latents_pred, prompt_embeds, neg_prompt_embeds, args, ) * lambda_csd
                 loss = loss + loss_csd
                 accelerator.backward(loss)
