@@ -5,3 +5,4 @@
 *.py[cod]
 experiments/
 wandb/
+src/datasets/for_generate_dataset/outputs/
