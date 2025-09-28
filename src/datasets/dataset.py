@@ -25,10 +25,15 @@ class PairedSROnlineTxtDataset(torch.utils.data.Dataset):
             self.crop_preproc = transforms.Compose([
                 transforms.RandomCrop((args.resolution_ori, args.resolution_ori)),
                 transforms.Resize((args.resolution_tgt, args.resolution_tgt)),
-                transforms.RandomHorizontalFlip(),
+                # transforms.RandomHorizontalFlip(),
             ])
             with open(args.dataset_txt_paths, 'r') as f:
                 self.gt_list = [line.strip() for line in f.readlines()]
+            if args.train_folder_lr is not None:
+                assert args.dataset_txt_paths_lr is not None
+                with open(args.dataset_txt_paths_lr, 'r') as f:
+                    self.lr_list = [line.strip() for line in f.readlines()]
+
             if args.highquality_dataset_txt_paths is not None:
                 with open(args.highquality_dataset_txt_paths, 'r') as f:
                     self.hq_gt_list = [line.strip() for line in f.readlines()]
@@ -71,9 +76,18 @@ class PairedSROnlineTxtDataset(torch.utils.data.Dataset):
                 gt_img = gt_img.resize((max(w, self.args.resolution_ori), max(h, self.args.resolution_ori)))
             gt_img = self.crop_preproc(gt_img)
 
-            output_t, img_t = self.degradation.degrade_process(np.asarray(gt_img)/255., resize_bak=True)
-            output_t, img_t = output_t.squeeze(0), img_t.squeeze(0)
+            if self.args.train_folder_lr is None: # 正常從 GT 產生 LR 的過程
+                output_t, img_t = self.degradation.degrade_process(np.asarray(gt_img)/255., resize_bak=True) # GT, LR
+            else: # 直接使用 LR 資料夾的圖片
+                output_t = gt_img
+                img_t = Image.open(self.lr_list[idx[0]]).convert('RGB')
+                img_t = img_t.resize(output_t.size, Image.BICUBIC) # 確保 img_t 與 output_t 大小相同
+                
+                # 轉成 Tensor
+                output_t = F.to_tensor(output_t)
+                img_t = F.to_tensor(img_t)
 
+            output_t, img_t = output_t.squeeze(0), img_t.squeeze(0)
             # input images scaled to -1,1
             img_t = F.normalize(img_t, mean=[0.5], std=[0.5])
             # output images scaled to -1,1
@@ -83,8 +97,8 @@ class PairedSROnlineTxtDataset(torch.utils.data.Dataset):
             # example["prompt"] = caption
             example["neg_prompt"] = self.args.neg_prompt_csd
             example["null_prompt"] = ""
-            example["output_pixel_values"] = output_t
-            example["conditioning_pixel_values"] = img_t
+            example["output_pixel_values"] = output_t # GT
+            example["conditioning_pixel_values"] = img_t # LR
 
             return example
             

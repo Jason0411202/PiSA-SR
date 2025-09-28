@@ -11,6 +11,13 @@ def parse_args(input_args=None):
     
     parser.add_argument("--train_folder", default=False)
 
+    # 如果有給這個參數，將直接使用這個資料夾作為 LR 影像的來源，而不會從 GT 中重新產生 LR
+    # 此參數需與 --dataset_txt_paths_lr 同時給 None 或非 None
+    # 給定這個參數後，後續的 --deg_file_path 將不起作用，需擇一使用
+    # 此外，這個參數與 --highquality_dataset_txt_paths 不相容，兩者擇一使用
+    parser.add_argument("--train_folder_lr", type=str, default=None)
+    parser.add_argument("--dataset_txt_paths_lr", type=str, default='preset/lr_path.txt')
+
     parser.add_argument("--is_module", default=True)
     parser.add_argument("--tracker_project_name", type=str, default="pisasr2025")
 

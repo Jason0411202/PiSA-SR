@@ -273,5 +273,8 @@ if __name__ == "__main__":
     random.seed(myseed)
 
     write_image_paths(args.train_folder, args.dataset_txt_paths, exts=[".png", ".jpg"])
+    if args.train_folder_lr is not None:
+        assert args.dataset_txt_paths_lr is not None
+        write_image_paths(args.train_folder_lr, args.dataset_txt_paths_lr, exts=[".png", ".jpg"])
 
     main(args)
