@@ -29,6 +29,7 @@ from src.my_utils.wavelet_color_fix import adain_color_fix, wavelet_color_fix
 from src.my_utils.utils import write_image_paths
 import random
 
+import vision_aided_loss
 import wandb
 import datetime
 
@@ -102,6 +103,19 @@ def main(args):
         num_training_steps=args.max_train_steps * accelerator.num_processes,
         num_cycles=args.lr_num_cycles, power=args.lr_power,)
     
+    if args.enable_gan_loss == "True":
+        print(">>> Enable GAN loss")
+        net_disc = vision_aided_loss.Discriminator(cv_type='dino', output_type='conv_multi_level', loss_type=args.gan_loss_type, device="cuda")
+        optimizer_disc = torch.optim.AdamW(net_disc.parameters(), lr=args.gan_learning_rate,
+        betas=(args.gan_adam_beta1, args.gan_adam_beta2), weight_decay=args.gan_adam_weight_decay,
+        eps=args.gan_adam_epsilon,)
+        lr_scheduler_disc = get_scheduler(args.gan_lr_scheduler, optimizer=optimizer_disc,
+        num_warmup_steps=args.gan_lr_warmup_steps * accelerator.num_processes,
+        num_training_steps=args.max_train_steps * accelerator.num_processes,
+        num_cycles=args.gan_lr_num_cycles, power=args.gan_lr_power)
+    else:
+        print(">>> Disable GAN loss")
+    
     # initialize the dataset
     dataset_train = PairedSROnlineTxtDataset(split="train", args=args)
     # dataset_val = PairedSROnlineTxtDataset(split="test", args=args)
@@ -130,11 +144,17 @@ def main(args):
     RAM.eval()
     RAM.to("cuda", dtype=torch.float16)
 
+    
     # Prepare everything with our `accelerator`.
     net_pisasr, optimizer, dl_train, lr_scheduler = accelerator.prepare(
         net_pisasr, optimizer, dl_train, lr_scheduler
     )
     net_lpips = accelerator.prepare(net_lpips)
+    if args.enable_gan_loss == "True":
+        net_disc, optimizer_disc, lr_scheduler_disc = accelerator.prepare(
+            net_disc, optimizer_disc, lr_scheduler_disc
+        )
+        net_disc.train()
 
     weight_dtype = torch.float32
     if accelerator.mixed_precision == "fp16":
@@ -199,6 +219,38 @@ def main(args):
                 lr_scheduler.step()
                 optimizer.zero_grad(set_to_none=args.set_grads_to_none)
 
+                if args.enable_gan_loss == "True":
+                    """
+                    Generator loss: fool the discriminator
+                    """
+                    x_tgt_pred, latents_pred, prompt_embeds, neg_prompt_embeds = net_pisasr(x_src, x_tgt, batch=batch, args=args)
+                    lossG = net_disc(x_tgt_pred, for_G=True).mean() * args.lambda_gan
+                    accelerator.backward(lossG)
+                    if accelerator.sync_gradients:
+                        accelerator.clip_grad_norm_(layers_to_opt, args.max_grad_norm)
+                    optimizer.step()
+                    lr_scheduler.step()
+                    optimizer.zero_grad(set_to_none=args.set_grads_to_none)
+
+                    """
+                    Discriminator loss: fake image vs real image
+                    """
+                    # real image
+                    lossD_real = net_disc(x_tgt.detach(), for_real=True).mean() * args.lambda_gan
+                    accelerator.backward(lossD_real.mean())
+                    if accelerator.sync_gradients:
+                        accelerator.clip_grad_norm_(net_disc.parameters(), args.max_grad_norm)
+                    optimizer_disc.step()
+                    lr_scheduler_disc.step()
+                    optimizer_disc.zero_grad(set_to_none=args.set_grads_to_none)
+                    # fake image
+                    lossD_fake = net_disc(x_tgt_pred.detach(), for_real=False).mean() * args.lambda_gan
+                    accelerator.backward(lossD_fake.mean())
+                    if accelerator.sync_gradients:
+                        accelerator.clip_grad_norm_(net_disc.parameters(), args.max_grad_norm)
+                    optimizer_disc.step()
+                    optimizer_disc.zero_grad(set_to_none=args.set_grads_to_none)
+
             if accelerator.sync_gradients:
                 progress_bar.update(1)
                 global_step += 1
@@ -217,39 +269,6 @@ def main(args):
                         accelerator.unwrap_model(net_pisasr).save_model(outf)
                     if global_step >= args.max_train_steps:
                         break
-
-                    # # test
-                    # if global_step % args.eval_freq == 1:
-                    #     os.makedirs(os.path.join(args.output_dir, "eval", f"fid_{global_step}"), exist_ok=True)
-                    #     for step, batch_val in enumerate(dl_val):
-                    #         x_src = batch_val["conditioning_pixel_values"].cuda()
-                    #         x_tgt = batch_val["output_pixel_values"].cuda()
-                    #         x_basename = batch_val["base_name"][0]
-                    #         B, C, H, W = x_src.shape
-                    #         assert B == 1, "Use batch size 1 for eval."
-                    #         with torch.no_grad():
-                    #             # get text prompts from LR
-                    #             x_src_ram = ram_transforms(x_src * 0.5 + 0.5)
-                    #             caption = inference(x_src_ram.to(dtype=torch.float16), RAM)
-                    #             batch_val["prompt"] = caption
-                    #             # forward pass
-                    #             x_tgt_pred, latents_pred, _, _ = accelerator.unwrap_model(net_pisasr)(x_src, x_tgt,
-                    #                                                                                   batch=batch_val,
-                    #                                                                                   args=args)
-                    #             # save the output
-                    #             output_pil = transforms.ToPILImage()(x_tgt_pred[0].cpu() * 0.5 + 0.5)
-                    #             input_image = transforms.ToPILImage()(x_src[0].cpu() * 0.5 + 0.5)
-                    #             if args.align_method == 'adain':
-                    #                 output_pil = adain_color_fix(target=output_pil, source=input_image)
-                    #             elif args.align_method == 'wavelet':
-                    #                 output_pil = wavelet_color_fix(target=output_pil, source=input_image)
-                    #             else:
-                    #                 pass
-                    #             outf = os.path.join(args.output_dir, "eval", f"fid_{global_step}", f"{x_basename}")
-                    #             output_pil.save(outf)
-                    #     gc.collect()
-                    #     torch.cuda.empty_cache()
-                    #     accelerator.log(logs, step=global_step)
 
                     accelerator.log(logs, step=global_step)
 

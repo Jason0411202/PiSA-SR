@@ -15,3 +15,4 @@ fairscale
 wandb
 torch_fidelity
 pyiqa
+vision_aided_loss

@@ -106,6 +106,23 @@ def parse_args(input_args=None):
     parser.add_argument("--align_method", type=str, choices=['wavelet', 'adain', 'nofix'], default='adain')
 
     parser.add_argument("--use_residual_in_training", default=True, type=bool) # 是否在訓練時使用殘差學習 (預設 True)
+    
+
+    # gan loss 相關參數
+    parser.add_argument("--enable_gan_loss", type=str, default="False", choices=["True", "False"], help="Whether to enable GAN loss.") # 是否啟用 GAN loss (預設 False)
+    parser.add_argument("--gan_loss_type", type=str, default="multilevel_sigmoid_s")
+    parser.add_argument("--gan_learning_rate", type=float, default=2e-5)
+    parser.add_argument("--gan_adam_beta1", type=float, default=0.9, help="The beta1 parameter for the Adam optimizer.")
+    parser.add_argument("--gan_adam_beta2", type=float, default=0.999, help="The beta2 parameter for the Adam optimizer.")
+    parser.add_argument("--gan_adam_weight_decay", type=float, default=1e-2, help="Weight decay to use.")
+    parser.add_argument("--gan_adam_epsilon", type=float, default=1e-08, help="Epsilon value for the Adam optimizer")
+    parser.add_argument("--gan_lr_scheduler", type=str, default="constant", help="The learning rate scheduler to use for the GAN optimizer.")
+    parser.add_argument("--gan_lr_warmup_steps", type=int, default=500, help="Number of steps for the warmup in the lr scheduler.")
+    parser.add_argument("--gan_lr_num_cycles", type=int, default=1, help="Number of hard resets of the lr in cosine_with_restarts scheduler.",)
+    parser.add_argument("--gan_lr_power", type=float, default=0.1, help="Power factor of the polynomial scheduler.")
+    parser.add_argument("--lambda_gan", type=float, default=0.5, help="Weight factor for GAN loss.")
+
+
     parser.add_argument("--wandb_project_name", type=str, default="test_pisasr") # 設定 wandb 的 project name
     parser.add_argument("--wandb_run_name", default="", type=str) # 設定 wandb 的 run name
 
