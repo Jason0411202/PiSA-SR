@@ -115,6 +115,11 @@ def main(args):
         num_cycles=args.gan_lr_num_cycles, power=args.gan_lr_power)
     else:
         print(">>> Disable GAN loss")
+
+    if args.use_residual_in_training == "True":
+        print(">>> Use residual in training")
+    else:
+        print(">>> remove residual in training")
     
     # initialize the dataset
     dataset_train = PairedSROnlineTxtDataset(split="train", args=args)

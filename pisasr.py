@@ -324,7 +324,7 @@ class PiSASR(torch.nn.Module):
         model_pred = self.unet(encoded_control, self.timesteps1, encoder_hidden_states=pos_caption_enc.to(torch.float32),).sample # 使用 pos_caption_enc 做為條件
 
         # ablation study: 是否使用殘差學習
-        if self.args.use_residual_in_training == True:
+        if self.args.use_residual_in_training == "True":
             x_denoised = encoded_control - model_pred # 與 OSEDiff 不同的殘差實作之處: encoded_control (zL) 扣掉 model_pred (模型預測出的殘差) 後，做為 x_denoised (zH) 輸出
         else:
             x_denoised = model_pred
@@ -565,7 +565,7 @@ class PiSASR_eval(nn.Module):
 
         # Decode output
         # ablation study: 是否使用殘差學習
-        if self.args.use_residual_in_training == True:
+        if self.args.use_residual_in_training == "True":
             x_denoised = encoded_control - model_pred # 與 OSEDiff 不同的殘差實作之處: encoded_control (zL) 扣掉 model_pred (模型預測出的殘差) 後，做為 x_denoised (zH) 輸出
         else:
             x_denoised = model_pred

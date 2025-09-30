@@ -105,7 +105,7 @@ def parse_args(input_args=None):
     parser.add_argument("--deg_file_path", default="params.yml", type=str)
     parser.add_argument("--align_method", type=str, choices=['wavelet', 'adain', 'nofix'], default='adain')
 
-    parser.add_argument("--use_residual_in_training", default=True, type=bool) # 是否在訓練時使用殘差學習 (預設 True)
+    parser.add_argument("--use_residual_in_training", type=str, default="True", choices=["True", "False"]) # 是否在訓練時使用殘差學習 (預設 True)
     
 
     # gan loss 相關參數
