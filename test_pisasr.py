@@ -164,7 +164,7 @@ if __name__ == "__main__":
     parser.add_argument("--mixed_precision", type=str, default="fp16") # 設定 float 經度以減少記憶體用量
     parser.add_argument("--wandb_project_name", type=str, default="test_pisasr") # 設定負責 log 的 wandb 專案名稱
     parser.add_argument("--wandb_run_name", type=str, default="") # 設定負責 log 的 wandb run 名稱
-    parser.add_argument("--use_residual_in_training", default=True, type=bool) # 是否在訓練時使用殘差學習 (預設 True)
+    parser.add_argument("--use_residual_in_training", type=str, default="True", choices=["True", "False"]) # 是否在訓練時使用殘差學習 (預設 True)
     parser.add_argument("--default",  action="store_true", help="use default or adjustable setting?")
     parser.add_argument("--max_inference_imgs_num",  default=500, type=int, help="max inference images number to evaluate PSNR, SSIM, FID") # 最大 inference 圖片數量
 

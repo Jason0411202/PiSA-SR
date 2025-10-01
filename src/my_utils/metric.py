@@ -32,8 +32,8 @@ class IQA_Evaluator:
         self.clipiqa = pyiqa.create_metric("clipiqa", device=self.device)
         self.musiq = pyiqa.create_metric("musiq", device=self.device)
 
-        self.test_SR_paths = list(sorted(glob.glob(os.path.join(self.gt_dir, "*"))))
-        self.test_HR_paths = list(sorted(glob.glob(os.path.join(self.hr_dir, "*"))))
+        self.test_SR_paths = list(sorted(glob.glob(os.path.join(self.hr_dir, "*"))))
+        self.test_HR_paths = list(sorted(glob.glob(os.path.join(self.gt_dir, "*"))))
 
     def evaluate(self):
         """
