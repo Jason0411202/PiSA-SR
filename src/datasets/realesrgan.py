@@ -85,6 +85,12 @@ class RealESRGAN_degradation(object):
         self.jpeger = DiffJPEG(differentiable=False).to(self.device)
         self.usm_shaper = USMSharp().to(self.device)
     
+    def add_speckle_noise(self, image, noise_range=0.75):
+        _, row, col = image.shape
+        noise = torch.randn((row, col), device=image.device)  # ~ N(0,1)
+        noisy = image + noise_range * image * noise
+        return noisy
+
     def color_jitter_pt(self, img, brightness, contrast, saturation, hue):
         fn_idx = torch.randperm(4)
         for fn_id in fn_idx:
@@ -239,6 +245,18 @@ class RealESRGAN_degradation(object):
                 gray_prob=gray_noise_prob,
                 clip=True,
                 rounds=False)
+        # speckle noise
+        if 'speckle_noise_range' in self.opt:
+            speckle_noise_range = self.opt['speckle_noise_range']
+
+            noisy_list = []
+            for i in range(out.shape[0]): # batch
+                noisy = self.add_speckle_noise(out[i], noise_range=speckle_noise_range)
+                noisy_list.append(noisy.unsqueeze(0))
+
+            out = torch.cat(noisy_list, dim=0)  # [B,1,H,W]
+
+
         # JPEG compression
         if self.opt['jpeg_range'] != [100, 100]:
             jpeg_p = out.new_zeros(out.size(0)).uniform_(*self.opt['jpeg_range'])
