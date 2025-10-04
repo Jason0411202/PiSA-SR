@@ -86,8 +86,8 @@ class RealESRGAN_degradation(object):
         self.usm_shaper = USMSharp().to(self.device)
     
     def add_speckle_noise(self, image, noise_range=0.75):
-        _, row, col = image.shape
-        noise = torch.randn((row, col), device=image.device)  # ~ N(0,1)
+        ch, row, col = image.shape
+        noise = torch.randn((ch, row, col), device=image.device)
         noisy = image + noise_range * image * noise
         return noisy
 

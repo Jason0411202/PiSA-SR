@@ -14,7 +14,7 @@
 # --gt_width 512 \
 # --gt_height 512 \
 
-# # HC18 training set (gaussian noise)
+# # HC18 training set (gaussian noise [10, 60])
 # python -m src.datasets.for_generate_dataset.for_generate_dataset \
 # --dataset_dir ../HC18/training_set \
 # --output_dir src/datasets/for_generate_dataset/outputs/gaussian_noise/training_set \
@@ -23,7 +23,7 @@
 # --gt_width 512 \
 # --gt_height 512 \
 
-# # HC18 test set (gaussian noise)
+# # HC18 test set (gaussian noise [10, 60])
 # python -m src.datasets.for_generate_dataset.for_generate_dataset \
 # --dataset_dir ../HC18/test_set \
 # --output_dir src/datasets/for_generate_dataset/outputs/gaussian_noise/test_set \
@@ -31,6 +31,24 @@
 # --upscale 1 \
 # --gt_width 512 \
 # --gt_height 512 \
+
+# HC18 training set (gaussian noise [10, 30])
+python -m src.datasets.for_generate_dataset.for_generate_dataset \
+--dataset_dir ../HC18/training_set \
+--output_dir src/datasets/for_generate_dataset/outputs/gaussian_noise_10_30/training_set \
+--degradation_file for_generate_dataset/gaussian_noise_10_30.yml \
+--upscale 1 \
+--gt_width 512 \
+--gt_height 512 \
+
+# HC18 test set (gaussian noise [10, 30])
+python -m src.datasets.for_generate_dataset.for_generate_dataset \
+--dataset_dir ../HC18/test_set \
+--output_dir src/datasets/for_generate_dataset/outputs/gaussian_noise_10_30/test_set \
+--degradation_file for_generate_dataset/gaussian_noise_10_30.yml \
+--upscale 1 \
+--gt_width 512 \
+--gt_height 512 \
 
 # HC18 training set (speckle noise)
 python -m src.datasets.for_generate_dataset.for_generate_dataset \
