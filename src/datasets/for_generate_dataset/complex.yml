@@ -5,7 +5,7 @@ gray_prob: 0.0
 resize_prob: [0.0, 0.0, 1.0]
 resize_range: [1.0, 1.0]
 gaussian_noise_prob: 1.0 # always add gaussian noise
-noise_range: [10, 60] # 10 ~ 60
+noise_range: [10, 30] # 10 ~ 30
 poisson_scale_range: [0.0, 0.0]
 gray_noise_prob: 0.0
 jpeg_range: [100, 100]

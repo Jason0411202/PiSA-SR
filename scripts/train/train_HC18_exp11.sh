@@ -1,13 +1,14 @@
 # 實驗十一
 # 在不同 degradation 上, 測試引入 GAN loss 造成的影響
+# GAN loss 只作用於 semantic-level 的 LoRA 的訓練, pixel-level 的 LoRA 則不受影響
 
-TRAIN_DEVICES="0,1"
-TEST_DEVICE="0"
+TRAIN_DEVICES="5,6,7"
+TEST_DEVICE="5"
 PROJECT_NAME="pisasr-exp11"
 EXP="exp11"
 
 # degradations (順序固定)
-degradations=("bicubic_4x" "gaussian_noise" "gaussian_blur" "complex")
+degradations=("complex" "gaussian_noise_10_30" "bicubic_4x" "gaussian_blur")
 enable_gan_loss=("True" "False")  # 是否使用 GAN loss
 
 for i in "${!degradations[@]}"; do
@@ -21,8 +22,6 @@ for i in "${!degradations[@]}"; do
         --train_folder="src/datasets/for_generate_dataset/outputs/${degradation}/training_set/GT" \
         --train_folder_lr="src/datasets/for_generate_dataset/outputs/${degradation}/training_set/LR" \
         --output_dir="experiments/HC18/${EXP}/${exp_id}/train" \
-        --pix_steps 15000 \
-        --max_train_steps 31000 \
         --enable_gan_loss=${gan_loss} \
         --wandb_project_name "${PROJECT_NAME}" \
         --wandb_run_name "${EXP}_${degradation}_enable_gan_loss${gan_loss} (train)"
@@ -32,7 +31,7 @@ for i in "${!degradations[@]}"; do
     python test_pisasr.py \
         --input_gt_image src/datasets/for_generate_dataset/outputs/${degradation}/test_set/GT \
         --input_lr_image src/datasets/for_generate_dataset/outputs/${degradation}/test_set/LR \
-        --pretrained_path experiments/HC18/${EXP}/${exp_id}/train/checkpoints/model_30001.pkl \
+        --pretrained_path experiments/HC18/${EXP}/${exp_id}/train/checkpoints/model_1001.pkl \
         --output_dir experiments/HC18/${EXP}/${exp_id}/test \
         --wandb_project_name "${PROJECT_NAME}" \
         --wandb_run_name "${EXP}_${degradation}_enable_gan_loss${gan_loss} (test)"

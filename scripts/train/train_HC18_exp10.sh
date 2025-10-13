@@ -3,13 +3,13 @@
 # 使用 HC18 資料集, 且為了與 SeeSR 做比較, dataset 的 setting 相同
 # 共測試 4 種 degradation, 分別為 bicubic_4x, gaussian_noise, gaussian_blur, complex
 
-TRAIN_DEVICES="2,6"
-TEST_DEVICE="2"
+TRAIN_DEVICES="6,7"
+TEST_DEVICE="6"
 PROJECT_NAME="pisasr-exp10"
 EXP="exp10"
 
 # degradations (順序固定)
-degradations=("bicubic_4x" "gaussian_noise" "gaussian_blur" "complex")
+degradations=("complex" "gaussian_noise_10_30" "bicubic_4x" "gaussian_blur" "gaussian_noise" "speckle_noise")
 
 for i in "${!degradations[@]}"; do
   degradation=${degradations[$i]}

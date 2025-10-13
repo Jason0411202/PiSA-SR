@@ -224,7 +224,8 @@ def main(args):
                 lr_scheduler.step()
                 optimizer.zero_grad(set_to_none=args.set_grads_to_none)
 
-                if args.enable_gan_loss == "True":
+                # 若有啟用 GAN loss, 且正在訓練 sementic LoRA, 則進行 GAN loss 的計算
+                if args.enable_gan_loss == "True" and global_step >= args.pix_steps:
                     """
                     Generator loss: fool the discriminator
                     """
