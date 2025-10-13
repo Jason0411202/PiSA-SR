@@ -8,8 +8,9 @@ PROJECT_NAME="pisasr-exp11"
 EXP="exp11"
 
 # degradations (順序固定)
-degradations=("complex" "gaussian_noise_10_30" "bicubic_4x" "gaussian_blur")
+degradations=("gaussian_noise_10_30" "bicubic_4x" "gaussian_blur" "complex" )
 enable_gan_loss=("True" "False")  # 是否使用 GAN loss
+model_steps="1001"  # 使用的模型訓練步數
 
 for i in "${!degradations[@]}"; do
   for j in "${!enable_gan_loss[@]}"; do
@@ -31,7 +32,7 @@ for i in "${!degradations[@]}"; do
     python test_pisasr.py \
         --input_gt_image src/datasets/for_generate_dataset/outputs/${degradation}/test_set/GT \
         --input_lr_image src/datasets/for_generate_dataset/outputs/${degradation}/test_set/LR \
-        --pretrained_path experiments/HC18/${EXP}/${exp_id}/train/checkpoints/model_1001.pkl \
+        --pretrained_path experiments/HC18/${EXP}/${exp_id}/train/checkpoints/model_${model_steps}.pkl \
         --output_dir experiments/HC18/${EXP}/${exp_id}/test \
         --wandb_project_name "${PROJECT_NAME}" \
         --wandb_run_name "${EXP}_${degradation}_enable_gan_loss${gan_loss} (test)"
