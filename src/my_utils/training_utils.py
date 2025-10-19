@@ -122,6 +122,10 @@ def parse_args(input_args=None):
     parser.add_argument("--gan_lr_power", type=float, default=0.1, help="Power factor of the polynomial scheduler.")
     parser.add_argument("--lambda_gan", type=float, default=0.5, help="Weight factor for GAN loss.")
 
+    # degradation condition 相關參數
+    parser.add_argument("--enable_deg_condition", type=str, default="False", choices=["True", "False"], help="Whether to enable degradation condition.") # 是否啟用 degradation condition (預設 False)
+    parser.add_argument("--de_net_path", type=str, default="src/de_net_pretrain_model/de_net.pth", help="Path to the pretrained degradation estimation network.")
+
 
     parser.add_argument("--wandb_project_name", type=str, default="test_pisasr") # 設定 wandb 的 project name
     parser.add_argument("--wandb_run_name", default="", type=str) # 設定 wandb 的 run name

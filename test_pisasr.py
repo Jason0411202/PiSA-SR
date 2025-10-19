@@ -19,12 +19,20 @@ import shutil
 from src.my_utils.metric import IQA_Evaluator
 import random
 
+from src.models.de_net import DEResNet
+
 run_timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S") # 計算執行程式時的當前時間
 
 def pisa_sr(args):
     # Initialize the model
     model = PiSASR_eval(args)
     model.set_eval()
+
+    # 載入 degradation condition pretrained 神經網路
+    net_de = DEResNet(num_in_ch=3, num_degradation=2)
+    net_de.load_model(args.de_net_path)
+    net_de = net_de.cuda()
+    net_de.eval()
 
     # Get all LR input images
     if os.path.isdir(args.input_lr_image):
@@ -108,7 +116,14 @@ def pisa_sr(args):
         # Inference, 透過模型將 LR 圖片轉成 HR 圖片
         with torch.no_grad():
             c_t = F.to_tensor(lr_image_upsample).unsqueeze(0).cuda() * 2 - 1
-            inference_time, output_image = model(args.default, c_t, prompt=validation_prompt)
+
+            deg_score = None
+            if args.enable_deg_condition == "True": # 若啟用 degradation condition encoder, 則取得 LR 的 degradation score
+                with torch.no_grad():
+                    deg_score = net_de(c_t)
+                    deg_score = deg_score.to(device=next(model.parameters()).device,
+                                 dtype=next(model.parameters()).dtype)
+            inference_time, output_image = model(args.default, c_t, deg_score, prompt=validation_prompt)
 
         print(f"Inference time: {inference_time:.4f} seconds")
         time_records.append(inference_time)
@@ -167,6 +182,10 @@ if __name__ == "__main__":
     parser.add_argument("--use_residual_in_training", type=str, default="True", choices=["True", "False"]) # 是否在訓練時使用殘差學習 (預設 True)
     parser.add_argument("--default",  action="store_true", help="use default or adjustable setting?")
     parser.add_argument("--max_inference_imgs_num",  default=500, type=int, help="max inference images number to evaluate PSNR, SSIM, FID") # 最大 inference 圖片數量
+
+    # degradation condition 相關參數
+    parser.add_argument("--enable_deg_condition", type=str, default="False", choices=["True", "False"], help="Whether to enable degradation condition.") # 是否啟用 degradation condition (預設 False)
+    parser.add_argument("--de_net_path", type=str, default="src/de_net_pretrain_model/de_net.pth", help="Path to the pretrained degradation estimation network.")
 
     args = parser.parse_args()
 

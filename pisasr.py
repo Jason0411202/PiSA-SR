@@ -21,6 +21,7 @@ from peft.utils.other import transpose
 sys.path.append(os.getcwd())
 from src.models.autoencoder_kl import AutoencoderKL
 from src.models.unet_2d_condition import UNet2DConditionModel
+from src.models.deg_condition_encoder import DegradationConditionEncoder
 from src.my_utils.vaehook import VAEHook
 
 
@@ -231,6 +232,14 @@ class PiSASR(torch.nn.Module):
         self.vae_fix.requires_grad_(False)
         self.vae_fix.eval()
 
+        # 引入 Degradation Condition Encoder, 用於透過 degradation score 產生 LoRA embedding
+        self.degradation_condition_encoder = DegradationConditionEncoder(
+            num_embeddings=64,
+            block_embedding_dim=64,
+            num_unet_blocks=len(self.lora_unet_modules_encoder_pix + self.lora_unet_modules_decoder_pix + self.lora_unet_others_pix + self.lora_unet_modules_encoder_sem + self.lora_unet_modules_decoder_sem + self.lora_unet_others_sem),
+            lora_rank_unet=4
+        )
+
     def set_train_pix(self):
         self.unet.train()
         for n, _p in self.unet.named_parameters():
@@ -308,7 +317,31 @@ class PiSASR(torch.nn.Module):
             ]
         return torch.concat(prompt_embeds, dim=0)
 
-    def forward(self, c_t, c_tgt, batch=None, args=None):
+    def forward(self, c_t, c_tgt, deg_score=None, batch=None, args=None):
+
+        # 若啟用 degradation condition encoder
+        if args.enable_deg_condition == "True":
+            unet_embeds = self.degradation_condition_encoder(deg_score) # 透過 degradation condition encoder，取得 LoRA embeddings
+
+            # 注入 LoRA embedding 到 UNet 的 LoRA layers 中
+            for layer_name in (
+                self.lora_unet_modules_encoder_pix
+                + self.lora_unet_modules_decoder_pix
+                + self.lora_unet_others_pix
+                + self.lora_unet_modules_encoder_sem
+                + self.lora_unet_modules_decoder_sem
+                + self.lora_unet_others_sem
+            ):
+                module = dict(self.unet.named_modules()).get(layer_name, None)
+                if module is not None:
+                    idx = (self.lora_unet_modules_encoder_pix
+                        + self.lora_unet_modules_decoder_pix
+                        + self.lora_unet_others_pix).index(layer_name)
+                    pixel_embed = unet_embeds[:, idx]
+                    module.de_mod = pixel_embed.reshape(
+                        -1, self.lora_rank_unet_pix, self.lora_rank_unet_pix
+                    )
+
         bs = c_t.shape[0] # batch size
         encoded_control = self.vae_fix.encode(c_t).latent_dist.sample() * self.vae_fix.config.scaling_factor
         # calculate prompt_embeddings and neg_prompt_embeddings (作者用的是 sd-2.1-base 的 tokenizer)
@@ -343,6 +376,10 @@ class PiSASR(torch.nn.Module):
         sd["lora_rank_unet_pix"] = self.lora_rank_unet_pix
         sd["lora_rank_unet_sem"] = self.lora_rank_unet_sem
         sd["state_dict_unet"] = {k: v for k, v in self.unet.state_dict().items() if "lora" in k}
+
+        # --- Degradation encoder 權重部分也要儲存 ---
+        sd["state_dict_deg_encoder"] = self.degradation_condition_encoder.state_dict()
+
         torch.save(sd, outf)
 
 
@@ -524,6 +561,27 @@ class PiSASR_eval(nn.Module):
                 if "lora" in name:
                     param.data.copy_(sd["state_dict_unet"][name])
 
+        # 載入 degradation condition encoder 的權重
+        self.lora_unet_modules_encoder_pix = sd["unet_lora_encoder_modules_pix"]
+        self.lora_unet_modules_decoder_pix = sd["unet_lora_decoder_modules_pix"]
+        self.lora_unet_others_pix = sd["unet_lora_others_modules_pix"]
+
+        self.lora_unet_modules_encoder_sem = sd["unet_lora_encoder_modules_sem"]
+        self.lora_unet_modules_decoder_sem = sd["unet_lora_decoder_modules_sem"]
+        self.lora_unet_others_sem = sd["unet_lora_others_modules_sem"]
+
+        self.lora_rank_unet_pix = sd["lora_rank_unet_pix"]
+        self.lora_rank_unet_sem = sd["lora_rank_unet_sem"]
+        self.degradation_condition_encoder = DegradationConditionEncoder(
+            num_embeddings=64,
+            block_embedding_dim=64,
+            num_unet_blocks=len(self.lora_unet_modules_encoder_pix + self.lora_unet_modules_decoder_pix + self.lora_unet_others_pix + self.lora_unet_modules_encoder_sem + self.lora_unet_modules_decoder_sem + self.lora_unet_others_sem),
+            lora_rank_unet=4
+        )
+        self.degradation_condition_encoder.load_state_dict(sd["state_dict_deg_encoder"])
+        self.degradation_condition_encoder.to(self.device, dtype=self.weight_dtype)
+        self.degradation_condition_encoder.eval()
+
 
     def set_eval(self):
         """Set models to evaluation mode."""
@@ -551,10 +609,33 @@ class PiSASR_eval(nn.Module):
         return sum(p.numel() for p in model.parameters()) / 1e9
 
     @torch.no_grad()
-    def forward(self, default, c_t, prompt=None):
+    def forward(self, default, c_t, deg_score=None, prompt=None):
         """Forward pass for inference."""
         torch.cuda.synchronize()
         start_time = time.time()
+
+        # 若啟用 degradation condition encoder
+        if self.args.enable_deg_condition == "True":
+            unet_embeds = self.degradation_condition_encoder(deg_score)
+
+            # 注入 LoRA embedding 到 UNet 的 LoRA layers 中
+            for layer_name in (
+                self.lora_unet_modules_encoder_pix
+                + self.lora_unet_modules_decoder_pix
+                + self.lora_unet_others_pix
+                + self.lora_unet_modules_encoder_sem
+                + self.lora_unet_modules_decoder_sem
+                + self.lora_unet_others_sem
+            ):
+                module = dict(self.unet.named_modules()).get(layer_name, None)
+                if module is not None:
+                    idx = (self.lora_unet_modules_encoder_pix
+                        + self.lora_unet_modules_decoder_pix
+                        + self.lora_unet_others_pix).index(layer_name)
+                    pixel_embed = unet_embeds[:, idx]
+                    module.de_mod = pixel_embed.reshape(
+                        -1, self.lora_rank_unet_pix, self.lora_rank_unet_pix
+                    )
 
         c_t = c_t.to(dtype=self.weight_dtype)
         prompt_embeds = self.encode_prompt([prompt]).to(dtype=self.weight_dtype)

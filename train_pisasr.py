@@ -32,6 +32,7 @@ import random
 import vision_aided_loss
 import wandb
 import datetime
+from src.models.de_net import DEResNet
 
 run_timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S") # 計算執行程式時的當前時間
 # g = torch.Generator()
@@ -167,6 +168,15 @@ def main(args):
     elif accelerator.mixed_precision == "bf16":
         weight_dtype = torch.bfloat16
 
+    # 載入 degradation condition pretrained 神經網路
+    net_de = DEResNet(num_in_ch=3, num_degradation=2)
+    net_de.load_model(args.de_net_path)
+    net_de = net_de.cuda()
+    net_de.eval()
+    #net_de = accelerator.prepare(net_de)
+    #net_de.to(accelerator.device, dtype=weight_dtype)
+
+
     # We need to initialize the trackers we use, and also store our configuration.
     # The trackers initializes automatically on the main process.
     if accelerator.is_main_process:
@@ -189,6 +199,16 @@ def main(args):
                 x_src = batch["conditioning_pixel_values"] # LR
                 x_tgt = batch["output_pixel_values"] # GT
 
+                deg_score = None
+                if args.enable_deg_condition == "True":
+                    # 取得 LR 的 degradation score
+                    with torch.no_grad():
+                        deg_score = net_de(x_src.detach())
+                        print(">> LR deg_score:", deg_score)
+
+                        GT_deg_score = net_de(x_tgt.detach())
+                        print(">> GT deg_score:", GT_deg_score)
+
                 # get text prompts from GT 
                 # 1. 從 GT 圖片中, 透過 RAM 模型取得 text prompt
                 x_tgt_ram = ram_transforms(x_tgt*0.5+0.5)
@@ -209,7 +229,7 @@ def main(args):
                     lambda_csd = args.lambda_csd
                 
                 # 2. forward process, 這步有包含 text prompt 輸入 (放在 batch 中)
-                x_tgt_pred, latents_pred, prompt_embeds, neg_prompt_embeds = net_pisasr(x_src, x_tgt, batch=batch, args=args)
+                x_tgt_pred, latents_pred, prompt_embeds, neg_prompt_embeds = net_pisasr(x_src, x_tgt, deg_score, batch=batch, args=args)
                 loss_l2 = F.mse_loss(x_tgt_pred.float(), x_tgt.float(), reduction="mean") * lambda_l2
                 loss_lpips = net_lpips(x_tgt_pred.float(), x_tgt.float()).mean() * lambda_lpips
                 loss = loss_l2 + loss_lpips
@@ -229,7 +249,7 @@ def main(args):
                     """
                     Generator loss: fool the discriminator
                     """
-                    x_tgt_pred, latents_pred, prompt_embeds, neg_prompt_embeds = net_pisasr(x_src, x_tgt, batch=batch, args=args)
+                    x_tgt_pred, latents_pred, prompt_embeds, neg_prompt_embeds = net_pisasr(x_src, x_tgt, deg_score, batch=batch, args=args)
                     lossG = net_disc(x_tgt_pred, for_G=True).mean() * args.lambda_gan
                     accelerator.backward(lossG)
                     if accelerator.sync_gradients:
