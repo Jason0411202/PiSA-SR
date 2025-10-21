@@ -203,11 +203,7 @@ def main(args):
                 if args.enable_deg_condition == "True":
                     # 取得 LR 的 degradation score
                     with torch.no_grad():
-                        deg_score = net_de(x_src.detach())
-                        print(">> LR deg_score:", deg_score)
-
-                        GT_deg_score = net_de(x_tgt.detach())
-                        print(">> GT deg_score:", GT_deg_score)
+                        deg_score = net_de((x_src.detach() + 1) / 2)
 
                 # get text prompts from GT 
                 # 1. 從 GT 圖片中, 透過 RAM 模型取得 text prompt
