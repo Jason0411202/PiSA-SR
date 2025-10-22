@@ -120,7 +120,7 @@ def pisa_sr(args):
             deg_score = None
             if args.enable_deg_condition == "True": # 若啟用 degradation condition encoder, 則取得 LR 的 degradation score
                 with torch.no_grad():
-                    deg_score = net_de(c_t)
+                    deg_score = net_de((c_t.detach() + 1) / 2)
                     deg_score = deg_score.to(device=next(model.parameters()).device,
                                  dtype=next(model.parameters()).dtype)
             inference_time, output_image = model(args.default, c_t, deg_score, prompt=validation_prompt)

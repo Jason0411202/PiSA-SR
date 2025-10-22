@@ -248,6 +248,14 @@ def main(args):
                     "loss_csd": loss_csd.detach().item(),
                 })
 
+                x_tgt_pred_save = x_tgt_pred * 0.5 + 0.5
+                x_tgt_pred_save = torch.clip(x_tgt_pred_save, 0, 1)
+                x_tgt_pred_save = transforms.ToPILImage()(x_tgt_pred_save[0].cpu())
+                if global_step % 50 == 0:
+                    wandb.log({
+                        "Prediction": [wandb.Image(x_tgt_pred_save, caption=f"Step-{global_step}")],
+                    })
+
                 # 若有啟用 GAN loss, 且正在訓練 sementic LoRA, 則進行 GAN loss 的計算
                 if args.enable_gan_loss == "True" and global_step >= args.pix_steps:
                     """
