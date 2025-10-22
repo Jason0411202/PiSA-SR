@@ -173,8 +173,8 @@ def main(args):
     net_de.load_model(args.de_net_path)
     net_de = net_de.cuda()
     net_de.eval()
-    #net_de = accelerator.prepare(net_de)
-    #net_de.to(accelerator.device, dtype=weight_dtype)
+    net_de = accelerator.prepare(net_de)
+    net_de.to(accelerator.device, dtype=weight_dtype)
 
 
     # We need to initialize the trackers we use, and also store our configuration.
@@ -201,7 +201,7 @@ def main(args):
 
                 deg_score = None
                 if args.enable_deg_condition == "True":
-                    # 取得 LR 的 degradation score
+                    # 取得 LR 的 degradation score (frozen)
                     with torch.no_grad():
                         deg_score = net_de((x_src.detach() + 1) / 2)
 
@@ -239,6 +239,14 @@ def main(args):
                 optimizer.step()
                 lr_scheduler.step()
                 optimizer.zero_grad(set_to_none=args.set_grads_to_none)
+
+                # 用 wandb 紀錄各種 loss 數值
+                wandb.log({
+                    "loss": loss.detach().item(),
+                    "loss_l2": loss_l2.detach().item(),
+                    "loss_lpips": loss_lpips.detach().item(),
+                    "loss_csd": loss_csd.detach().item(),
+                })
 
                 # 若有啟用 GAN loss, 且正在訓練 sementic LoRA, 則進行 GAN loss 的計算
                 if args.enable_gan_loss == "True" and global_step >= args.pix_steps:

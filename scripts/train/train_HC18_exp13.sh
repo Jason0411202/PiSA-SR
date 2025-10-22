@@ -1,10 +1,11 @@
 # 實驗十三: 實驗加入 degradation condition 後的效果
 
-TRAIN_DEVICES="2,3"
-TEST_DEVICE="2"
+TRAIN_DEVICES="4,5,6,7"
+TEST_DEVICE="4"
 PROJECT_NAME="pisasr-exp13"
 EXP="exp13"
 
+# degradations=("bicubic_4x" "gaussian_noise_10_30" "gaussian_blur" "complex")
 degradations=("complex")
 enable_deg_condition=("True" "False")
 model_steps="1001"

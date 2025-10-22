@@ -37,6 +37,7 @@ def read_yaml(file_path):
         data = yaml.safe_load(file)
     return data
 
+from src.models.deg_condition_encoder import my_lora_fwd
 
 def initialize_unet(rank_pix, rank_sem, return_lora_module_names=False, pretrained_model_path=None):
     unet = UNet2DConditionModel.from_pretrained(pretrained_model_path, subfolder="unet")
@@ -232,13 +233,36 @@ class PiSASR(torch.nn.Module):
         self.vae_fix.requires_grad_(False)
         self.vae_fix.eval()
 
-        # 引入 Degradation Condition Encoder, 用於透過 degradation score 產生 LoRA embedding
-        self.degradation_condition_encoder = DegradationConditionEncoder(
-            num_embeddings=64,
-            block_embedding_dim=64,
-            num_unet_blocks=len(self.lora_unet_modules_encoder_pix + self.lora_unet_modules_decoder_pix + self.lora_unet_others_pix + self.lora_unet_modules_encoder_sem + self.lora_unet_modules_decoder_sem + self.lora_unet_others_sem),
-            lora_rank_unet=4
-        )
+        if args.enable_deg_condition == "True":
+            # 引入 Degradation Condition Encoder, 用於透過 degradation score 產生 LoRA embedding
+            # pixel-level LoRA 跟 semantic-level LoRA 各使用一個獨立的 Degradation Condition Encoder
+            self.degradation_condition_encoder_pix = DegradationConditionEncoder(
+                num_embeddings=64,
+                block_embedding_dim=64,
+                num_unet_blocks=len(self.lora_unet_modules_encoder_pix + self.lora_unet_modules_decoder_pix + self.lora_unet_others_pix),
+                lora_rank_unet=args.lora_rank_unet_pix
+            )
+            self.degradation_condition_encoder_sem = DegradationConditionEncoder(
+                num_embeddings=64,
+                block_embedding_dim=64,
+                num_unet_blocks=len(self.lora_unet_modules_encoder_sem + self.lora_unet_modules_decoder_sem + self.lora_unet_others_sem),
+                lora_rank_unet=args.lora_rank_unet_sem
+            )
+
+            # 定義哪些 layers 會被 LoRA 調整
+            self.unet_lora_layers_pix = (
+                self.lora_unet_modules_encoder_pix
+                + self.lora_unet_modules_decoder_pix
+                + self.lora_unet_others_pix
+            )
+            self.unet_lora_layers_sem = (
+                self.lora_unet_modules_encoder_sem
+                + self.lora_unet_modules_decoder_sem
+                + self.lora_unet_others_sem
+            )
+            for name, module in self.unet.named_modules(): # 替換成自定義的 forward function, 目的是為了結合 de_mod (也就是在 LoRA forward 時，加入 degradation condition)
+                if name in self.unet_lora_layers_pix or name in self.unet_lora_layers_sem:
+                    module.forward = my_lora_fwd.__get__(module, module.__class__)
 
     def set_train_pix(self):
         self.unet.train()
@@ -321,26 +345,39 @@ class PiSASR(torch.nn.Module):
 
         # 若啟用 degradation condition encoder
         if args.enable_deg_condition == "True":
-            unet_embeds = self.degradation_condition_encoder(deg_score) # 透過 degradation condition encoder，取得 LoRA embeddings
+            unet_embeds_pix = self.degradation_condition_encoder_pix(deg_score) # 透過 degradation condition encoder，取得 LoRA embeddings
+            for layer_name, module in self.unet.named_modules(): # 將 LoRA embeddings 指派給各個 LoRA layers 中的 de_mod
+                if layer_name in self.unet_lora_layers_pix:
+                    split_name = layer_name.split(".")
 
-            # 注入 LoRA embedding 到 UNet 的 LoRA layers 中
-            for layer_name in (
-                self.lora_unet_modules_encoder_pix
-                + self.lora_unet_modules_decoder_pix
-                + self.lora_unet_others_pix
-                + self.lora_unet_modules_encoder_sem
-                + self.lora_unet_modules_decoder_sem
-                + self.lora_unet_others_sem
-            ):
-                module = dict(self.unet.named_modules()).get(layer_name, None)
-                if module is not None:
-                    idx = (self.lora_unet_modules_encoder_pix
-                        + self.lora_unet_modules_decoder_pix
-                        + self.lora_unet_others_pix).index(layer_name)
-                    pixel_embed = unet_embeds[:, idx]
-                    module.de_mod = pixel_embed.reshape(
-                        -1, self.lora_rank_unet_pix, self.lora_rank_unet_pix
-                    )
+                    if split_name[0] == 'down_blocks':
+                        block_id = int(split_name[1])
+                        unet_embed = unet_embeds_pix[:, block_id]
+                    elif split_name[0] == 'mid_block':
+                        unet_embed = unet_embeds_pix[:, 4]
+                    elif split_name[0] == 'up_blocks':
+                        block_id = int(split_name[1]) + 5
+                        unet_embed = unet_embeds_pix[:, block_id]
+                    else:
+                        unet_embed = unet_embeds_pix[:, -1]
+                    module.de_mod = unet_embed.reshape(-1, self.lora_rank_unet_pix, self.lora_rank_unet_pix) # 具體指派的實作邏輯
+
+            unet_embeds_sem = self.degradation_condition_encoder_sem(deg_score) # 透過 degradation condition encoder，取得 LoRA embeddings
+            for layer_name, module in self.unet.named_modules(): # 將 LoRA embeddings 指派給各個 LoRA layers 中的 de_mod
+                if layer_name in self.unet_lora_layers_sem:
+                    split_name = layer_name.split(".")
+
+                    if split_name[0] == 'down_blocks':
+                        block_id = int(split_name[1])
+                        unet_embed = unet_embeds_sem[:, block_id]
+                    elif split_name[0] == 'mid_block':
+                        unet_embed = unet_embeds_sem[:, 4]
+                    elif split_name[0] == 'up_blocks':
+                        block_id = int(split_name[1]) + 5
+                        unet_embed = unet_embeds_sem[:, block_id]
+                    else:
+                        unet_embed = unet_embeds_sem[:, -1]
+                    module.de_mod = unet_embed.reshape(-1, self.lora_rank_unet_sem, self.lora_rank_unet_sem) # 具體指派的實作邏輯
 
         bs = c_t.shape[0] # batch size
         encoded_control = self.vae_fix.encode(c_t).latent_dist.sample() * self.vae_fix.config.scaling_factor
@@ -377,8 +414,11 @@ class PiSASR(torch.nn.Module):
         sd["lora_rank_unet_sem"] = self.lora_rank_unet_sem
         sd["state_dict_unet"] = {k: v for k, v in self.unet.state_dict().items() if "lora" in k}
 
-        # --- Degradation encoder 權重部分也要儲存 ---
-        sd["state_dict_deg_encoder"] = self.degradation_condition_encoder.state_dict()
+        if self.args.enable_deg_condition == "True":
+            # --- Degradation encoder 權重部分也要儲存 ---
+            sd["state_dict_deg_encoder_pix"] = self.degradation_condition_encoder_pix.state_dict()
+            sd["state_dict_deg_encoder_sem"] = self.degradation_condition_encoder_sem.state_dict()
+            # -------------------------------------------
 
         torch.save(sd, outf)
 
@@ -572,15 +612,45 @@ class PiSASR_eval(nn.Module):
 
         self.lora_rank_unet_pix = sd["lora_rank_unet_pix"]
         self.lora_rank_unet_sem = sd["lora_rank_unet_sem"]
-        self.degradation_condition_encoder = DegradationConditionEncoder(
-            num_embeddings=64,
-            block_embedding_dim=64,
-            num_unet_blocks=len(self.lora_unet_modules_encoder_pix + self.lora_unet_modules_decoder_pix + self.lora_unet_others_pix + self.lora_unet_modules_encoder_sem + self.lora_unet_modules_decoder_sem + self.lora_unet_others_sem),
-            lora_rank_unet=4
-        )
-        self.degradation_condition_encoder.load_state_dict(sd["state_dict_deg_encoder"])
-        self.degradation_condition_encoder.to(self.device, dtype=self.weight_dtype)
-        self.degradation_condition_encoder.eval()
+
+        if self.args.enable_deg_condition == "True":
+            # 引入 Degradation Condition Encoder, 用於透過 degradation score 產生 LoRA embedding
+            # pixel-level LoRA 跟 semantic-level LoRA 各使用一個獨立的 Degradation Condition Encoder
+            self.degradation_condition_encoder_pix = DegradationConditionEncoder(
+                num_embeddings=64,
+                block_embedding_dim=64,
+                num_unet_blocks=len(self.lora_unet_modules_encoder_pix + self.lora_unet_modules_decoder_pix + self.lora_unet_others_pix),
+                lora_rank_unet=sd["lora_rank_unet_pix"]
+            )
+            self.degradation_condition_encoder_sem = DegradationConditionEncoder(
+                num_embeddings=64,
+                block_embedding_dim=64,
+                num_unet_blocks=len(self.lora_unet_modules_encoder_sem + self.lora_unet_modules_decoder_sem + self.lora_unet_others_sem),
+                lora_rank_unet=sd["lora_rank_unet_sem"]
+            )
+
+            self.degradation_condition_encoder_pix.load_state_dict(sd["state_dict_deg_encoder_pix"])
+            self.degradation_condition_encoder_pix.to(self.device, dtype=self.weight_dtype)
+            self.degradation_condition_encoder_pix.eval()
+
+            self.degradation_condition_encoder_sem.load_state_dict(sd["state_dict_deg_encoder_sem"])
+            self.degradation_condition_encoder_sem.to(self.device, dtype=self.weight_dtype)
+            self.degradation_condition_encoder_sem.eval()
+
+            # 定義哪些 layers 會被 LoRA 調整
+            self.unet_lora_layers_pix = (
+                self.lora_unet_modules_encoder_pix
+                + self.lora_unet_modules_decoder_pix
+                + self.lora_unet_others_pix
+            )
+            self.unet_lora_layers_sem = (
+                self.lora_unet_modules_encoder_sem
+                + self.lora_unet_modules_decoder_sem
+                + self.lora_unet_others_sem
+            )
+            for name, module in self.unet.named_modules(): # 替換成自定義的 forward function, 目的是為了結合 de_mod (也就是在 LoRA forward 時，加入 degradation condition)
+                if name in self.unet_lora_layers_pix or name in self.unet_lora_layers_sem:
+                    module.forward = my_lora_fwd.__get__(module, module.__class__)
 
 
     def set_eval(self):
@@ -616,26 +686,39 @@ class PiSASR_eval(nn.Module):
 
         # 若啟用 degradation condition encoder
         if self.args.enable_deg_condition == "True":
-            unet_embeds = self.degradation_condition_encoder(deg_score)
+            unet_embeds_pix = self.degradation_condition_encoder_pix(deg_score) # 透過 degradation condition encoder，取得 LoRA embeddings
+            for layer_name, module in self.unet.named_modules(): # 將 LoRA embeddings 指派給各個 LoRA layers 中的 de_mod
+                if layer_name in self.unet_lora_layers_pix:
+                    split_name = layer_name.split(".")
 
-            # 注入 LoRA embedding 到 UNet 的 LoRA layers 中
-            for layer_name in (
-                self.lora_unet_modules_encoder_pix
-                + self.lora_unet_modules_decoder_pix
-                + self.lora_unet_others_pix
-                + self.lora_unet_modules_encoder_sem
-                + self.lora_unet_modules_decoder_sem
-                + self.lora_unet_others_sem
-            ):
-                module = dict(self.unet.named_modules()).get(layer_name, None)
-                if module is not None:
-                    idx = (self.lora_unet_modules_encoder_pix
-                        + self.lora_unet_modules_decoder_pix
-                        + self.lora_unet_others_pix).index(layer_name)
-                    pixel_embed = unet_embeds[:, idx]
-                    module.de_mod = pixel_embed.reshape(
-                        -1, self.lora_rank_unet_pix, self.lora_rank_unet_pix
-                    )
+                    if split_name[0] == 'down_blocks':
+                        block_id = int(split_name[1])
+                        unet_embed = unet_embeds_pix[:, block_id]
+                    elif split_name[0] == 'mid_block':
+                        unet_embed = unet_embeds_pix[:, 4]
+                    elif split_name[0] == 'up_blocks':
+                        block_id = int(split_name[1]) + 5
+                        unet_embed = unet_embeds_pix[:, block_id]
+                    else:
+                        unet_embed = unet_embeds_pix[:, -1]
+                    module.de_mod = unet_embed.reshape(-1, self.lora_rank_unet_pix, self.lora_rank_unet_pix) # 具體指派的實作邏輯
+
+            unet_embeds_sem = self.degradation_condition_encoder_sem(deg_score) # 透過 degradation condition encoder，取得 LoRA embeddings
+            for layer_name, module in self.unet.named_modules(): # 將 LoRA embeddings 指派給各個 LoRA layers 中的 de_mod
+                if layer_name in self.unet_lora_layers_sem:
+                    split_name = layer_name.split(".")
+
+                    if split_name[0] == 'down_blocks':
+                        block_id = int(split_name[1])
+                        unet_embed = unet_embeds_sem[:, block_id]
+                    elif split_name[0] == 'mid_block':
+                        unet_embed = unet_embeds_sem[:, 4]
+                    elif split_name[0] == 'up_blocks':
+                        block_id = int(split_name[1]) + 5
+                        unet_embed = unet_embeds_sem[:, block_id]
+                    else:
+                        unet_embed = unet_embeds_sem[:, -1]
+                    module.de_mod = unet_embed.reshape(-1, self.lora_rank_unet_sem, self.lora_rank_unet_sem) # 具體指派的實作邏輯
 
         c_t = c_t.to(dtype=self.weight_dtype)
         prompt_embeds = self.encode_prompt([prompt]).to(dtype=self.weight_dtype)
