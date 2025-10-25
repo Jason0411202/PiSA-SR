@@ -236,18 +236,7 @@ class PiSASR(torch.nn.Module):
         if args.enable_deg_condition == "True":
             # 引入 Degradation Condition Encoder, 用於透過 degradation score 產生 LoRA embedding
             # pixel-level LoRA 跟 semantic-level LoRA 各使用一個獨立的 Degradation Condition Encoder
-            self.degradation_condition_encoder_pix = DegradationConditionEncoder(
-                num_embeddings=64,
-                block_embedding_dim=64,
-                num_unet_blocks=len(self.lora_unet_modules_encoder_pix + self.lora_unet_modules_decoder_pix + self.lora_unet_others_pix),
-                lora_rank_unet=args.lora_rank_unet_pix
-            )
-            self.degradation_condition_encoder_sem = DegradationConditionEncoder(
-                num_embeddings=64,
-                block_embedding_dim=64,
-                num_unet_blocks=len(self.lora_unet_modules_encoder_sem + self.lora_unet_modules_decoder_sem + self.lora_unet_others_sem),
-                lora_rank_unet=args.lora_rank_unet_sem
-            )
+            self.create_degradation_condition_encoder()
 
             # 定義哪些 layers 會被 LoRA 調整
             self.unet_lora_layers_pix = (
@@ -325,6 +314,33 @@ class PiSASR(torch.nn.Module):
         for n, p in self.unet.named_parameters():
             if "lora" in n:
                 p.data.copy_(sd["state_dict_unet"][n])
+
+        if self.args.enable_deg_condition == "True":
+            # 引入 Degradation Condition Encoder, 用於透過 degradation score 產生 LoRA embedding
+            # pixel-level LoRA 跟 semantic-level LoRA 各使用一個獨立的 Degradation Condition Encoder
+            self.create_degradation_condition_encoder()
+
+            self.degradation_condition_encoder_pix.load_state_dict(sd["state_dict_deg_encoder_pix"])
+            self.degradation_condition_encoder_pix.to("cuda", dtype=torch.float32)
+            self.degradation_condition_encoder_pix.eval()
+
+            self.degradation_condition_encoder_sem.load_state_dict(sd["state_dict_deg_encoder_sem"])
+            self.degradation_condition_encoder_sem.to("cuda", dtype=torch.float32)
+            self.degradation_condition_encoder_sem.eval()
+    def create_degradation_condition_encoder(self):
+        if not hasattr(self, "degradation_condition_encoder_pix"):
+            self.degradation_condition_encoder_pix = DegradationConditionEncoder(
+                num_embeddings=64,
+                block_embedding_dim=64,
+                num_unet_blocks=len(self.lora_unet_modules_encoder_pix + self.lora_unet_modules_decoder_pix + self.lora_unet_others_pix),
+                lora_rank_unet=self.args.lora_rank_unet_pix
+            )
+            self.degradation_condition_encoder_sem = DegradationConditionEncoder(
+                num_embeddings=64,
+                block_embedding_dim=64,
+                num_unet_blocks=len(self.lora_unet_modules_encoder_sem + self.lora_unet_modules_decoder_sem + self.lora_unet_others_sem),
+                lora_rank_unet=self.args.lora_rank_unet_sem
+            )
 
     # Adopted from pipelines.StableDiffusionXLPipeline.encode_prompt
     def encode_prompt(self, prompt_batch):
@@ -450,7 +466,23 @@ class PiSASR_eval(nn.Module):
         if not args.default:
             self._prepare_lora_deltas(["default_encoder_sem", "default_decoder_sem", "default_others_sem"])
         set_weights_and_activate_adapters(self.unet, ["default_encoder_sem", "default_decoder_sem", "default_others_sem"], [1.0, 1.0, 1.0])
-        self.unet.merge_and_unload()
+        # self.unet.merge_and_unload() # 不能 merge, 因為即使是 eval 仍會有變動的 C (W + ACB)
+
+        if args.enable_deg_condition == "True":
+            # 定義哪些 layers 會被 LoRA 調整
+            self.unet_lora_layers_pix = (
+                self.lora_unet_modules_encoder_pix
+                + self.lora_unet_modules_decoder_pix
+                + self.lora_unet_others_pix
+            )
+            self.unet_lora_layers_sem = (
+                self.lora_unet_modules_encoder_sem
+                + self.lora_unet_modules_decoder_sem
+                + self.lora_unet_others_sem
+            )
+            for name, module in self.unet.named_modules(): # 替換成自定義的 forward function, 目的是為了結合 de_mod (也就是在 LoRA forward 時，加入 degradation condition)
+                if name in self.unet_lora_layers_pix or name in self.unet_lora_layers_sem:
+                    module.forward = my_lora_fwd.__get__(module, module.__class__)
 
         # Move models to device and precision
         self._move_models_to_device_and_dtype()
@@ -580,7 +612,7 @@ class PiSASR_eval(nn.Module):
 
             # merge pix adapters into base weights and keep original weights
             set_weights_and_activate_adapters(self.unet, ["default_encoder_pix", "default_decoder_pix", "default_others_pix"], [1.0, 1.0, 1.0])
-            self.unet.merge_and_unload()
+            # self.unet.merge_and_unload() # 不能 merge, 因為即使是 eval 仍會有變動的 C (W + ACB)
             self.ori_unet_weight = {}
             for name, param in self.unet.named_parameters():
                 self.ori_unet_weight[name] = param.clone().data.to(self.weight_dtype).to("cuda")
@@ -616,18 +648,7 @@ class PiSASR_eval(nn.Module):
         if self.args.enable_deg_condition == "True":
             # 引入 Degradation Condition Encoder, 用於透過 degradation score 產生 LoRA embedding
             # pixel-level LoRA 跟 semantic-level LoRA 各使用一個獨立的 Degradation Condition Encoder
-            self.degradation_condition_encoder_pix = DegradationConditionEncoder(
-                num_embeddings=64,
-                block_embedding_dim=64,
-                num_unet_blocks=len(self.lora_unet_modules_encoder_pix + self.lora_unet_modules_decoder_pix + self.lora_unet_others_pix),
-                lora_rank_unet=sd["lora_rank_unet_pix"]
-            )
-            self.degradation_condition_encoder_sem = DegradationConditionEncoder(
-                num_embeddings=64,
-                block_embedding_dim=64,
-                num_unet_blocks=len(self.lora_unet_modules_encoder_sem + self.lora_unet_modules_decoder_sem + self.lora_unet_others_sem),
-                lora_rank_unet=sd["lora_rank_unet_sem"]
-            )
+            self.create_degradation_condition_encoder()
 
             self.degradation_condition_encoder_pix.load_state_dict(sd["state_dict_deg_encoder_pix"])
             self.degradation_condition_encoder_pix.to(self.device, dtype=self.weight_dtype)
@@ -636,21 +657,20 @@ class PiSASR_eval(nn.Module):
             self.degradation_condition_encoder_sem.load_state_dict(sd["state_dict_deg_encoder_sem"])
             self.degradation_condition_encoder_sem.to(self.device, dtype=self.weight_dtype)
             self.degradation_condition_encoder_sem.eval()
-
-            # 定義哪些 layers 會被 LoRA 調整
-            self.unet_lora_layers_pix = (
-                self.lora_unet_modules_encoder_pix
-                + self.lora_unet_modules_decoder_pix
-                + self.lora_unet_others_pix
+    def create_degradation_condition_encoder(self):
+        if not hasattr(self, "degradation_condition_encoder_pix"):
+            self.degradation_condition_encoder_pix = DegradationConditionEncoder(
+                num_embeddings=64,
+                block_embedding_dim=64,
+                num_unet_blocks=len(self.lora_unet_modules_encoder_pix + self.lora_unet_modules_decoder_pix + self.lora_unet_others_pix),
+                lora_rank_unet=self.lora_rank_unet_pix
             )
-            self.unet_lora_layers_sem = (
-                self.lora_unet_modules_encoder_sem
-                + self.lora_unet_modules_decoder_sem
-                + self.lora_unet_others_sem
+            self.degradation_condition_encoder_sem = DegradationConditionEncoder(
+                num_embeddings=64,
+                block_embedding_dim=64,
+                num_unet_blocks=len(self.lora_unet_modules_encoder_sem + self.lora_unet_modules_decoder_sem + self.lora_unet_others_sem),
+                lora_rank_unet=self.lora_rank_unet_sem
             )
-            for name, module in self.unet.named_modules(): # 替換成自定義的 forward function, 目的是為了結合 de_mod (也就是在 LoRA forward 時，加入 degradation condition)
-                if name in self.unet_lora_layers_pix or name in self.unet_lora_layers_sem:
-                    module.forward = my_lora_fwd.__get__(module, module.__class__)
 
 
     def set_eval(self):

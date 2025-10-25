@@ -92,6 +92,17 @@ def main(args):
 
     # make the optimizer
     layers_to_opt = []
+    layers_to_opt = layers_to_opt + \
+        list(net_pisasr.degradation_condition_encoder_pix.unet_block_embeddings.parameters()) + \
+        list(net_pisasr.degradation_condition_encoder_pix.unet_de_mlp.parameters()) + \
+        list(net_pisasr.degradation_condition_encoder_pix.unet_block_mlp.parameters()) + \
+        list(net_pisasr.degradation_condition_encoder_pix.unet_fuse_mlp.parameters())
+    layers_to_opt = layers_to_opt + \
+        list(net_pisasr.degradation_condition_encoder_sem.unet_block_embeddings.parameters()) + \
+        list(net_pisasr.degradation_condition_encoder_sem.unet_de_mlp.parameters()) + \
+        list(net_pisasr.degradation_condition_encoder_sem.unet_block_mlp.parameters()) + \
+        list(net_pisasr.degradation_condition_encoder_sem.unet_fuse_mlp.parameters())
+
     for n, _p in net_pisasr.unet.named_parameters():
         if "lora" in n:
             layers_to_opt.append(_p)

@@ -58,7 +58,7 @@ class  DegradationConditionEncoder(nn.Module):
             ):
         super().__init__()
 
-        self.W = nn.Parameter(torch.randn(num_embeddings), requires_grad=False)
+        self.W = nn.Parameter(torch.randn(num_embeddings)) # 與作者不同的是, self.W 也是會學習參數的一部分並會透過 state_dict() 存下來, 為了避免 train 跟 test 的此參數不一致
         self.unet_de_mlp = nn.Sequential(
             nn.Linear(num_embeddings * 4, 256),
             nn.ReLU(True),
@@ -68,7 +68,7 @@ class  DegradationConditionEncoder(nn.Module):
             nn.ReLU(True),
         )
         self.unet_fuse_mlp = nn.Linear(256 + 64, lora_rank_unet ** 2)
-        default_init_weights([self.unet_de_mlp, self.unet_block_mlp, self.unet_fuse_mlp], 1e-5)
+        # default_init_weights([self.unet_de_mlp, self.unet_block_mlp, self.unet_fuse_mlp], 1e-5) # 這行會導致 LoRA 的 W + ACB 退化成 W
 
         self.unet_block_embeddings = nn.Embedding(num_unet_blocks, block_embedding_dim)
 

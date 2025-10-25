@@ -172,11 +172,11 @@ if __name__ == "__main__":
     parser.add_argument("--align_method", type=str, choices=['wavelet', 'adain', 'nofix'], default="adain") # 拿 LR 修正 HR 的顏色
     parser.add_argument("--lambda_pix", default=1.0, type=float, help="the scale for pixel-level enhancement") # 作者論文參數, 用於控制輸出的影像更偏向 Pixel-level
     parser.add_argument("--lambda_sem", default=1.0, type=float, help="the scale for semantic-level enhancements") # 作者論文參數, 用於控制輸出的影像更偏向 Semantic-level
-    parser.add_argument("--vae_decoder_tiled_size", type=int, default=224) # tiled VAE 參數, 用於處理大圖
+    parser.add_argument("--vae_decoder_tiled_size", type=int, default=512) # tiled VAE 參數, 用於處理大圖
     parser.add_argument("--vae_encoder_tiled_size", type=int, default=1024) # tiled VAE 參數, 用於處理大圖
-    parser.add_argument("--latent_tiled_size", type=int, default=256) # tiled diffusion 參數, 用於處理大圖
+    parser.add_argument("--latent_tiled_size", type=int, default=512) # tiled diffusion 參數, 用於處理大圖
     parser.add_argument("--latent_tiled_overlap", type=int, default=64) # tiled diffusion 參數, 用於處理大圖
-    parser.add_argument("--mixed_precision", type=str, default="fp16") # 設定 float 經度以減少記憶體用量
+    parser.add_argument("--mixed_precision", type=str, default="fp32") # 設定 float 經度以減少記憶體用量
     parser.add_argument("--wandb_project_name", type=str, default="test_pisasr") # 設定負責 log 的 wandb 專案名稱
     parser.add_argument("--wandb_run_name", type=str, default="") # 設定負責 log 的 wandb run 名稱
     parser.add_argument("--use_residual_in_training", type=str, default="True", choices=["True", "False"]) # 是否在訓練時使用殘差學習 (預設 True)
